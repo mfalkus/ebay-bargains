@@ -179,6 +179,10 @@ if ($clientId === '' || $clientSecret === '') {
         $filterParts[] = 'deliveryCountry:' . $marketplaceDeliveryCountry[$marketplaceUsed];
     }
 
+    $searchLogFile = dirname(__DIR__) . '/data/search.log';
+    $searchLogLine = gmdate('Y-m-d\TH:i:s\Z') . "\t" . $clientIp . "\t" . str_replace(["\r", "\n"], ' ', $_SERVER['QUERY_STRING'] ?? '') . "\n";
+    @file_put_contents($searchLogFile, $searchLogLine, FILE_APPEND | LOCK_EX);
+
     try {
         $params = [
             'q' => $queryUsed,
