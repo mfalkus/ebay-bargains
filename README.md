@@ -1,8 +1,8 @@
-# eBay Fiddle – Bargains Ending Soon
+# eBay Bargains – Items Ending Soon
 
 A simple PHP web app that uses the **eBay Browse API** to hunt for potential bargains: browse any category by **keyword** and **category ID**, sorted by **ending soonest**. Great for spotting last-minute auction deals and short-dated listings. No login required; uses app-only OAuth.
 
-![eBay Fiddle – search by category, filter by price and location, view results ending soon](example.png)
+![eBay – search by category, filter by price and location, view results ending soon](example.png)
 
 ## Features
 
