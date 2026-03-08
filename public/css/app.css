@@ -353,6 +353,17 @@ tr.zero-bids td {
     color: var(--text);
 }
 
+/* Auction with reserve not met: red tint */
+tr.reserve-not-met td {
+    background: rgba(248, 113, 113, 0.12);
+    color: var(--text);
+}
+
+[data-theme="light"] tr.reserve-not-met td {
+    background: rgba(220, 38, 38, 0.1);
+    color: var(--text);
+}
+
 /* 0 bids + outside core hours: light green */
 tr.zero-bids.outside-core td {
     background: rgba(34, 197, 94, 0.12);

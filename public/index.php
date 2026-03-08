@@ -50,6 +50,7 @@ $marketplaceDeliveryCountry = [
 $error = '';
 $categoryList = []; // Flattened categories from API (id, name, path, level)
 $items = [];
+$reserveStatusByItemId = []; // itemId => reservePriceMet (from getItems bulk call)
 $total = 0;
 $queryUsed = '';
 $categoryUsed = $defaultCategory;
@@ -142,6 +143,35 @@ if ($clientId === '' || $clientSecret === '') {
                 $shippingOptions = $item['shippingOptions'] ?? [];
                 return is_array($shippingOptions) && $shippingOptions !== [];
             }));
+        }
+
+        // One bulk getItems call for reserve status: top 10 items only, and only 0-bid auctions.
+        $reserveStatusByItemId = [];
+        $top10 = array_slice($items, 0, 10);
+        $idsToFetch = [];
+        foreach ($top10 as $it) {
+            $opts = $it['buyingOptions'] ?? [];
+            $isAuction = in_array('AUCTION', $opts, true);
+            $bids = $it['bidCount'] ?? null;
+            $zeroBids = $bids !== null && (int) $bids === 0;
+            if ($isAuction && $zeroBids) {
+                $id = $it['itemId'] ?? '';
+                if ($id !== '') {
+                    $idsToFetch[] = $id;
+                }
+            }
+        }
+        if ($idsToFetch !== []) {
+            try {
+                $fullItems = $api->getItems($idsToFetch, $marketplaceUsed);
+                foreach ($fullItems as $id => $full) {
+                    if (array_key_exists('reservePriceMet', $full)) {
+                        $reserveStatusByItemId[$id] = $full['reservePriceMet'];
+                    }
+                }
+            } catch (Throwable $e) {
+                // Non-fatal: reserve column stays unknown; don't replace $error
+            }
         }
     } catch (Throwable $e) {
         $error = $e->getMessage();
@@ -296,6 +326,8 @@ $pageTitle = "eBay - what's ending soon?";
                         }
                         $condition = $item['condition'] ?? $item['conditionId'] ?? '—';
                         $hasZeroBids = $bidCount !== null && (int) $bidCount === 0;
+                        $reservePriceMet = $reserveStatusByItemId[$itemId] ?? $item['reservePriceMet'] ?? null;
+                        $isAuctionReserveNotMet = $isAuction && $reservePriceMet === false;
                         $outsideCoreHours = false;
                         $coreHoursLabel = $coreHoursByMarketplace[$marketplaceUsed]['label'] ?? 'core hours';
                         if ($endTs > 0 && $endDate !== '' && isset($coreHoursByMarketplace[$marketplaceUsed])) {
@@ -307,8 +339,12 @@ $pageTitle = "eBay - what's ending soon?";
                             $range = ($dayOfWeek >= 6) ? $core['weekend'] : $core['weekday'];
                             $outsideCoreHours = $hour < $range[0] || $hour > $range[1];
                         }
+                        $rowClasses = array_filter([
+                            $hasZeroBids ? 'zero-bids' . ($outsideCoreHours ? ' outside-core' : '') : null,
+                            $isAuctionReserveNotMet ? 'reserve-not-met' : null,
+                        ]);
                         ?>
-                        <tr<?= $hasZeroBids ? ' class="zero-bids' . ($outsideCoreHours ? ' outside-core' : '') . '"' : '' ?>>
+                        <tr<?= $rowClasses !== [] ? ' class="' . implode(' ', $rowClasses) . '"' : '' ?>>
                             <td class="col-thumb">
                                 <?php if ($img !== ''): ?>
                                     <a href="<?= htmlspecialchars($url) ?>" target="_blank" rel="noopener"><img src="<?= htmlspecialchars($img) ?>" alt="" loading="lazy"></a>

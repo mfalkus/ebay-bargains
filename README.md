@@ -8,6 +8,7 @@ Simple PHP web app that uses the **eBay Browse API** to show an information-dens
 - **Max price** filter (default $300)
 - **Sort: ending soonest** so auctions and short-dated listings appear first
 - Dense table: image, title, price/bid, end date/time, bid count, condition, link to eBay
+- **Reserve not met**: for the top 10 results, auction items with 0 bids get a single bulk `getItems` call; rows where the reserve isn’t met are highlighted in red (requires `buy.item.bulk` scope if your keyset uses separate scopes).
 
 ## Requirements
 
@@ -30,7 +31,8 @@ This copies `moment.min.js`, `tom-select.css`, and `tom-select.complete.min.js` 
 1. **eBay Developer Account**
    - Go to [eBay Developers Program](https://developer.ebay.com/).
    - Create an application and get **Production** credentials (Client ID and Client Secret).
-   - Ensure your app has **OAuth scope** `https://api.ebay.com/oauth/api_scope` (default for Browse API).
+   - Ensure your app has **OAuth scope** `https://api.ebay.com/oauth/api_scope` (default for Browse API). Reserve-price highlighting also uses the Browse API `getItems` method, which may require scope `https://api.ebay.com/oauth/api_scope/buy.item.bulk` depending on your keyset.
+   - **You cannot add scopes in the developer portal.** Scopes are assigned to your application keyset when the keys are created. To see which scopes your app has: go to **Application Keys**, then use the **OAuth Scopes** link (lower-right of the keys section). If `getItems` returns 403 or you don’t see reserve highlighting, your keyset may not include `buy.item.bulk`; contact [eBay Developer Support](https://developer.ebay.com/support) to request it.
 
 2. **Configure credentials**
    - Copy `.env.example` to `.env`.
