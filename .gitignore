@@ -1,6 +1,7 @@
 .env
 node_modules/
 cache/
+data/
 .idea/
 *.swp
 .DS_Store

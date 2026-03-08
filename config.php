@@ -17,3 +17,6 @@ if (is_readable($envFile)) {
 
 $clientId = getenv('EBAY_CLIENT_ID') ?: '';
 $clientSecret = getenv('EBAY_CLIENT_SECRET') ?: '';
+
+$unlimitedIpsRaw = getenv('UNLIMITED_IPS') ?: '';
+$unlimitedIps = array_values(array_filter(array_map('trim', explode(',', $unlimitedIpsRaw))));

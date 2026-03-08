@@ -3,8 +3,22 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/config.php';
+require_once dirname(__DIR__) . '/src/RateLimiter.php';
 require_once dirname(__DIR__) . '/src/EbayApi.php';
 require_once dirname(__DIR__) . '/src/CategoryTreeLoader.php';
+
+$clientIp = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+if (isset($_SERVER['HTTP_X_FORWARDED_FOR']) && $_SERVER['HTTP_X_FORWARDED_FOR'] !== '') {
+    $clientIp = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0]);
+}
+$rateLimiter = new RateLimiter($unlimitedIps, dirname(__DIR__) . '/data/rate_limit');
+if (!$rateLimiter->allowRequest($clientIp)) {
+    http_response_code(429);
+    header('Content-Type: text/plain; charset=utf-8');
+    header('Retry-After: 60');
+    echo 'Too Many Requests. Limit: 10 per minute, 100 per hour.';
+    exit;
+}
 
 // Default category: Laptops & Netbooks
 $defaultCategory = '177';
