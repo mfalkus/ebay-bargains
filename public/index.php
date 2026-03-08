@@ -71,7 +71,8 @@ $defaultCategory = '177';
 $defaultMaxPrice = '30';
 $defaultLocation = 'GB';   // UK Only
 $defaultCurrency = 'GBP';
-$limit = 200;
+$pageSize = 200;  // items per page (eBay max 200 per request)
+$maxOffset = 9800; // eBay Browse API returns up to 10,000 items total; last page starts at 9800 for pageSize 200
 
 $locations = [
     'GB' => 'UK Only',
@@ -120,6 +121,7 @@ $currencyUsed = $defaultCurrency;
 $marketplaceUsed = 'EBAY_GB';
 $buyingOptionUsed = 'all';
 $excludeCollectionOnly = false;
+$offset = 0;
 
 if ($clientId === '' || $clientSecret === '') {
     $error = 'Set EBAY_CLIENT_ID and EBAY_CLIENT_SECRET in .env or environment. See README.';
@@ -131,6 +133,8 @@ if ($clientId === '' || $clientSecret === '') {
     $marketplaceUsed = $_GET['marketplace'] ?? 'EBAY_GB';
     $buyingOptionUsed = $_GET['buying_option'] ?? 'all';
     $excludeCollectionOnly = isset($_GET['exclude_collection_only']) && $_GET['exclude_collection_only'] !== '' && $_GET['exclude_collection_only'] !== '0';
+    $offset = isset($_GET['offset']) ? max(0, (int) $_GET['offset']) : 0;
+    $offset = min($offset, $maxOffset);
 
     if (!array_key_exists($locationUsed, $locations)) {
         $locationUsed = $defaultLocation;
@@ -188,7 +192,8 @@ if ($clientId === '' || $clientSecret === '') {
             'q' => $queryUsed,
             'category_ids' => $categoryUsed,
             'sort' => 'endingSoonest',
-            'limit' => (string) min($limit, 200),
+            'limit' => (string) $pageSize,
+            'offset' => (string) $offset,
             'filter' => implode(',', $filterParts),
         ];
         $result = $api->search($params, $marketplaceUsed);
@@ -328,10 +333,44 @@ $pageTitle = "eBay - what's ending soon?";
     <?php endif; ?>
 
     <?php if ($error === '' && ($queryUsed !== '' || $categoryUsed !== '')): ?>
-        <?php $itemsCount = count($items); ?>
+        <?php
+        $itemsCount = count($items);
+        $from = $total > 0 ? $offset + 1 : 0;
+        $to = $offset + $itemsCount;
+        $totalPages = $pageSize > 0 ? (int) ceil(min($total, $maxOffset + $pageSize) / $pageSize) : 1;
+        $currentPage = $pageSize > 0 ? (int) floor($offset / $pageSize) + 1 : 1;
+        $baseQuery = array_filter([
+            'q' => $queryUsed !== '' ? $queryUsed : null,
+            'category_ids' => $categoryIdsSelected,
+            'max_price' => $maxPriceUsed,
+            'location' => $locationUsed,
+            'currency' => $currencyUsed,
+            'marketplace' => $marketplaceUsed,
+            'buying_option' => $buyingOptionUsed,
+            'exclude_collection_only' => $excludeCollectionOnly ? '1' : null,
+        ], static function ($v) { return $v !== null && $v !== '' && $v !== []; });
+        $paginateUrl = static function (int $newOffset) use ($baseQuery): string {
+            $q = $baseQuery;
+            if ($newOffset > 0) {
+                $q['offset'] = (string) $newOffset;
+            }
+            return '?' . http_build_query($q, '', '&', PHP_QUERY_RFC3986);
+        };
+        $paginationNav = '';
+        if ($total > $pageSize) {
+            $prevLink = $offset > 0
+                ? '<a href="' . htmlspecialchars($paginateUrl(max(0, $offset - $pageSize))) . '" class="pagination-link pagination-prev">← Previous</a>'
+                : '<span class="pagination-link pagination-prev is-disabled" aria-disabled="true">← Previous</span>';
+            $nextLink = ($offset + $pageSize < $total && $offset < $maxOffset)
+                ? '<a href="' . htmlspecialchars($paginateUrl($offset + $pageSize)) . '" class="pagination-link pagination-next">Next →</a>'
+                : '<span class="pagination-link pagination-next is-disabled" aria-disabled="true">Next →</span>';
+            $paginationNav = '<nav class="pagination" aria-label="Results pagination">' . $prevLink . '<span class="pagination-info">Page ' . (int) $currentPage . ' of ' . (int) $totalPages . '</span>' . $nextLink . '</nav>';
+        }
+        ?>
         <div class="meta">
-            <?= $itemsCount ?> items shown (total <?= $total ?>). Sorted by ending soonest. <?= count($categoryIdsSelected) > 1 ? 'Categories ' : 'Category ' ?><?= htmlspecialchars($categoryUsed) ?>, max <?= htmlspecialchars($currencyUsed) ?> <?= htmlspecialchars($maxPriceUsed) ?><?= $locationUsed !== '' ? ', ' . htmlspecialchars($locations[$locationUsed]) : '' ?><?= $excludeCollectionOnly ? ', collection-only excluded' : '' ?>.
+            <?= $itemsCount ?> items shown (<?= $from ?>–<?= $to ?> of <?= $total ?>)<?= $total > $pageSize ? ' · Page ' . $currentPage . ' of ' . $totalPages : '' ?>. Sorted by ending soonest. <?= count($categoryIdsSelected) > 1 ? 'Categories ' : 'Category ' ?><?= htmlspecialchars($categoryUsed) ?>, max <?= htmlspecialchars($currencyUsed) ?> <?= htmlspecialchars($maxPriceUsed) ?><?= $locationUsed !== '' ? ', ' . htmlspecialchars($locations[$locationUsed]) : '' ?><?= $excludeCollectionOnly ? ', collection-only excluded' : '' ?>.
         </div>
+        <?= $paginationNav ?>
         <div class="table-wrap">
             <table>
                 <thead>
@@ -451,6 +490,7 @@ $pageTitle = "eBay - what's ending soon?";
                 </tbody>
             </table>
         </div>
+        <?= $paginationNav ?>
         <?php unset($items); ?>
         <?php if ($itemsCount === 0 && $error === ''): ?>
             <p class="meta">No items found. Try a different keyword, category, or max price.</p>

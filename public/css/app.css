@@ -355,6 +355,34 @@ button:hover {
     margin-bottom: 0.75rem;
 }
 
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.pagination-link {
+    color: var(--link);
+    text-decoration: none;
+}
+
+.pagination-link:hover {
+    text-decoration: underline;
+}
+
+.pagination-link.is-disabled {
+    color: var(--muted);
+    cursor: default;
+    text-decoration: none;
+}
+
+.pagination-info {
+    color: var(--muted);
+}
+
 /* ==========================================================================
    Results table
    ========================================================================== */
