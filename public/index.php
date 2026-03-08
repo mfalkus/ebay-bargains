@@ -21,6 +21,21 @@ $locations = [
 $currencies = ['GBP' => 'GBP', 'USD' => 'USD', 'EUR' => 'EUR'];
 $currencySymbols = ['GBP' => '£', 'USD' => '$', 'EUR' => '€'];
 $marketplaces = ['EBAY_GB' => 'eBay UK', 'EBAY_US' => 'eBay US'];
+// Core hours = typical prime end times per marketplace (hour in local time, 0–23). Weekend = Sat/Sun gets broader window.
+$coreHoursByMarketplace = [
+    'EBAY_GB' => [
+        'timezone' => 'Europe/London',
+        'weekday' => [18, 22],
+        'weekend' => [12, 22],
+        'label' => 'weekdays 6–10pm, weekends 12–10pm UK',
+    ],
+    'EBAY_US' => [
+        'timezone' => 'America/Los_Angeles',
+        'weekday' => [14, 21],
+        'weekend' => [12, 21],
+        'label' => 'weekdays 2–9pm, weekends 12–9pm Pacific',
+    ],
+];
 $buyingOptionFilters = [
     'all' => 'All',
     'AUCTION' => 'Auction only',
@@ -115,7 +130,7 @@ if ($clientId === '' || $clientSecret === '') {
     }
 }
 
-$pageTitle = 'Cheap tech ending soon';
+$pageTitle = "eBay - what's ending soon?";
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -257,8 +272,20 @@ $pageTitle = 'Cheap tech ending soon';
                             $totalFormatted = 'n/a';
                         }
                         $condition = $item['condition'] ?? $item['conditionId'] ?? '—';
+                        $hasZeroBids = $bidCount !== null && (int) $bidCount === 0;
+                        $outsideCoreHours = false;
+                        $coreHoursLabel = $coreHoursByMarketplace[$marketplaceUsed]['label'] ?? 'core hours';
+                        if ($endTs > 0 && $endDate !== '' && isset($coreHoursByMarketplace[$marketplaceUsed])) {
+                            $core = $coreHoursByMarketplace[$marketplaceUsed];
+                            $dt = new DateTime($endDate);
+                            $dt->setTimezone(new DateTimeZone($core['timezone']));
+                            $hour = (int) $dt->format('G');
+                            $dayOfWeek = (int) $dt->format('N');
+                            $range = ($dayOfWeek >= 6) ? $core['weekend'] : $core['weekday'];
+                            $outsideCoreHours = $hour < $range[0] || $hour > $range[1];
+                        }
                         ?>
-                        <tr>
+                        <tr<?= $hasZeroBids ? ' class="zero-bids' . ($outsideCoreHours ? ' outside-core' : '') . '"' : '' ?>>
                             <td class="col-thumb">
                                 <?php if ($img !== ''): ?>
                                     <a href="<?= htmlspecialchars($url) ?>" target="_blank" rel="noopener"><img src="<?= htmlspecialchars($img) ?>" alt="" loading="lazy"></a>
@@ -270,13 +297,13 @@ $pageTitle = 'Cheap tech ending soon';
                                 <a href="<?= htmlspecialchars($url) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($title) ?></a>
                             </td>
                             <td class="col-price">
-                                <span class="price"><?= $priceFormatted ?></span>
+                                <span class="price-item"><?= $priceFormatted ?></span>
                             </td>
                             <td class="col-total">
                                 <?php if ($totalFormatted === 'n/a'): ?>
                                     <span class="total-na">n/a</span>
                                 <?php else: ?>
-                                    <span class="price"><?= $totalFormatted ?></span>
+                                    <span class="price-total"><?= $totalFormatted ?></span>
                                 <?php endif; ?>
                             </td>
                             <td class="col-buying"><?= htmlspecialchars($typeLabel) ?></td>
@@ -284,6 +311,9 @@ $pageTitle = 'Cheap tech ending soon';
                                 <?php
                                 if ($endTs > 0 && $endDate !== '') {
                                     ?><span class="relative-time" data-end="<?= htmlspecialchars($endDate) ?>" title="<?= htmlspecialchars(date('M j, Y H:i', $endTs)) ?>"><?= htmlspecialchars(date('M j, Y H:i', $endTs)) ?></span><?php
+                                    if ($outsideCoreHours) {
+                                        echo ' <span class="outside-core" title="Ends outside core eBay hours (' . htmlspecialchars($coreHoursLabel) . ')" aria-label="Ends outside core eBay hours">★</span>';
+                                    }
                                     if ($isEndSoon) {
                                         echo ' <span class="end-soon">(soon)</span>';
                                     }
