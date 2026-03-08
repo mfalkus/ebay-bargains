@@ -130,6 +130,14 @@ $pageTitle = 'Cheap tech ending soon';
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($pageTitle) ?></title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment.min.js" crossorigin="anonymous"></script>
+    <script>
+    (function() {
+        var stored = localStorage.getItem('theme');
+        var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+        var theme = stored === 'light' || stored === 'dark' ? stored : (prefersLight ? 'light' : 'dark');
+        document.documentElement.setAttribute('data-theme', theme);
+    })();
+    </script>
     <style>
         :root {
             --bg: #0f0f12;
@@ -141,6 +149,18 @@ $pageTitle = 'Cheap tech ending soon';
             --link: #38bdf8;
             --danger: #f87171;
         }
+        [data-theme="light"] {
+            --bg: #f4f4f5;
+            --surface: #ffffff;
+            --border: #e4e4e7;
+            --text: #18181b;
+            --muted: #71717a;
+            --accent: #16a34a;
+            --link: #0284c7;
+            --danger: #dc2626;
+        }
+        [data-theme="light"] .col-thumb img { background: #e4e4e7; }
+        [data-theme="light"] tr:hover td { background: rgba(22,163,74,0.08); }
         * { box-sizing: border-box; }
         body {
             font-family: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
@@ -257,10 +277,33 @@ $pageTitle = 'Cheap tech ending soon';
         .price { font-weight: 600; color: var(--accent); }
         .total-na { color: var(--muted); }
         .end-soon { color: var(--danger); }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .page-header h1 { margin: 0; }
+        .theme-toggle {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.4rem 0.75rem;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .theme-toggle:hover { border-color: var(--accent); }
     </style>
 </head>
 <body>
-    <h1><?= htmlspecialchars($pageTitle) ?></h1>
+    <header class="page-header">
+        <h1><?= htmlspecialchars($pageTitle) ?></h1>
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">Light</button>
+    </header>
 
     <form class="form" method="get" action="">
         <div class="field">
@@ -440,6 +483,25 @@ $pageTitle = 'Cheap tech ending soon';
             el.textContent = moment.utc(end).fromNow();
         }
     });
+    (function() {
+        var btn = document.getElementById('theme-toggle');
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            btn.textContent = theme === 'dark' ? 'Light' : 'Dark';
+            btn.setAttribute('aria-label', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
+        }
+        function toggleTheme() {
+            var current = document.documentElement.getAttribute('data-theme');
+            applyTheme(current === 'dark' ? 'light' : 'dark');
+        }
+        if (btn) {
+            var current = document.documentElement.getAttribute('data-theme');
+            btn.textContent = current === 'dark' ? 'Light' : 'Dark';
+            btn.setAttribute('aria-label', current === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
+            btn.addEventListener('click', toggleTheme);
+        }
+    })();
     </script>
 </body>
 </html>
