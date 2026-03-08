@@ -74,6 +74,31 @@ h1 {
     margin: 0;
 }
 
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.github-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text);
+    padding: 0.35rem;
+    border-radius: 6px;
+    transition: color 0.15s, background 0.15s;
+}
+
+.github-link:hover {
+    color: var(--accent);
+    background: var(--surface);
+}
+
+.github-icon {
+    display: block;
+}
+
 .theme-toggle {
     background: var(--surface);
     border: 1px solid var(--border);
