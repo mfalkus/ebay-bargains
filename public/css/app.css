@@ -129,6 +129,30 @@ h1 {
     text-transform: uppercase;
 }
 
+.field--checkbox {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.field--checkbox label {
+    font-size: 13px;
+    text-transform: none;
+    order: 0;
+}
+
+.field--checkbox input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    order: -1;
+}
+
+.field--checkbox .field-hint {
+    width: 100%;
+    margin-top: 0;
+}
+
 .field-hint {
     color: var(--muted);
     font-size: 11px;

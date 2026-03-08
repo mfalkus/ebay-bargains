@@ -41,6 +41,11 @@ $buyingOptionFilters = [
     'AUCTION' => 'Auction only',
     'FIXED_PRICE' => 'Buy it now only',
 ];
+// When "exclude collection only" is on and location is Any, use this country for deliveryCountry (items that can be shipped there = excludes pickup-only).
+$marketplaceDeliveryCountry = [
+    'EBAY_GB' => 'GB',
+    'EBAY_US' => 'US',
+];
 
 $error = '';
 $categoryList = []; // Flattened categories from API (id, name, path, level)
@@ -54,6 +59,7 @@ $locationUsed = $defaultLocation;
 $currencyUsed = $defaultCurrency;
 $marketplaceUsed = 'EBAY_GB';
 $buyingOptionUsed = 'all';
+$excludeCollectionOnly = false;
 
 if ($clientId === '' || $clientSecret === '') {
     $error = 'Set EBAY_CLIENT_ID and EBAY_CLIENT_SECRET in .env or environment. See README.';
@@ -64,6 +70,7 @@ if ($clientId === '' || $clientSecret === '') {
     $currencyUsed = $_GET['currency'] ?? $defaultCurrency;
     $marketplaceUsed = $_GET['marketplace'] ?? 'EBAY_GB';
     $buyingOptionUsed = $_GET['buying_option'] ?? 'all';
+    $excludeCollectionOnly = isset($_GET['exclude_collection_only']) && $_GET['exclude_collection_only'] !== '' && $_GET['exclude_collection_only'] !== '0';
 
     if (!array_key_exists($locationUsed, $locations)) {
         $locationUsed = $defaultLocation;
@@ -110,8 +117,11 @@ if ($clientId === '' || $clientSecret === '') {
         ? 'buyingOptions:{AUCTION|FIXED_PRICE}'
         : 'buyingOptions:{' . $buyingOptionUsed . '}';
     $filterParts = [$buyingOptionFilter, 'price:[..' . $maxPriceInt . ']', 'priceCurrency:' . $currencyUsed];
+    // deliveryCountry = only items that can be shipped to that country (excludes collection-only / pickup-only).
     if ($locationUsed !== '') {
         $filterParts[] = 'deliveryCountry:' . $locationUsed;
+    } elseif ($excludeCollectionOnly && isset($marketplaceDeliveryCountry[$marketplaceUsed])) {
+        $filterParts[] = 'deliveryCountry:' . $marketplaceDeliveryCountry[$marketplaceUsed];
     }
 
     try {
@@ -125,6 +135,14 @@ if ($clientId === '' || $clientSecret === '') {
         $result = $api->search($params, $marketplaceUsed);
         $items = $result['itemSummaries'] ?? [];
         $total = (int) ($result['total'] ?? 0);
+
+        // API can still return pickup-only items when deliveryCountry is set; exclude them client-side.
+        if ($excludeCollectionOnly && $items !== []) {
+            $items = array_values(array_filter($items, static function (array $item): bool {
+                $shippingOptions = $item['shippingOptions'] ?? [];
+                return is_array($shippingOptions) && $shippingOptions !== [];
+            }));
+        }
     } catch (Throwable $e) {
         $error = $e->getMessage();
     }
@@ -206,6 +224,11 @@ $pageTitle = "eBay - what's ending soon?";
                 <?php endforeach; ?>
             </select>
         </div>
+        <div class="field field--checkbox">
+            <input type="checkbox" id="exclude_collection_only" name="exclude_collection_only" value="1" <?= $excludeCollectionOnly ? 'checked' : '' ?>>
+            <label for="exclude_collection_only">Exclude collection only</label>
+            <span class="field-hint">Only show items that can be shipped (hide pickup-only listings).</span>
+        </div>
         <div class="field">
             <button type="submit">Search (ending soon)</button>
         </div>
@@ -217,7 +240,7 @@ $pageTitle = "eBay - what's ending soon?";
 
     <?php if ($error === '' && ($queryUsed !== '' || $categoryUsed !== '')): ?>
         <div class="meta">
-            <?= count($items) ?> items shown (total <?= $total ?>). Sorted by ending soonest. <?= count($categoryIdsSelected) > 1 ? 'Categories ' : 'Category ' ?><?= htmlspecialchars($categoryUsed) ?>, max <?= htmlspecialchars($currencyUsed) ?> <?= htmlspecialchars($maxPriceUsed) ?><?= $locationUsed !== '' ? ', ' . htmlspecialchars($locations[$locationUsed]) : '' ?>.
+            <?= count($items) ?> items shown (total <?= $total ?>). Sorted by ending soonest. <?= count($categoryIdsSelected) > 1 ? 'Categories ' : 'Category ' ?><?= htmlspecialchars($categoryUsed) ?>, max <?= htmlspecialchars($currencyUsed) ?> <?= htmlspecialchars($maxPriceUsed) ?><?= $locationUsed !== '' ? ', ' . htmlspecialchars($locations[$locationUsed]) : '' ?><?= $excludeCollectionOnly ? ', collection-only excluded' : '' ?>.
         </div>
         <div class="table-wrap">
             <table>
