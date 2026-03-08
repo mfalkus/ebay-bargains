@@ -100,4 +100,43 @@ final class EbayApi
 
         return $this->cachedToken;
     }
+
+    /** Get default category tree ID for a marketplace (Taxonomy API). */
+    public function getDefaultCategoryTreeId(string $marketplace): array
+    {
+        $token = $this->getAccessToken();
+        $url = 'https://api.ebay.com/commerce/taxonomy/v1/get_default_category_tree_id?marketplace_id=' . rawurlencode($marketplace);
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $token, 'Accept: application/json'],
+        ]);
+        $response = curl_exec($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($response === false || $status >= 400) {
+            throw new RuntimeException('Failed to get category tree ID for ' . $marketplace);
+        }
+        return json_decode($response, true) ?? [];
+    }
+
+    /** Get full category tree (Taxonomy API). Use Accept-Encoding: gzip for large response. */
+    public function getCategoryTree(string $categoryTreeId): array
+    {
+        $token = $this->getAccessToken();
+        $url = 'https://api.ebay.com/commerce/taxonomy/v1/category_tree/' . rawurlencode($categoryTreeId);
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => 'gzip',
+            CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $token, 'Accept: application/json', 'Accept-Encoding: gzip'],
+        ]);
+        $response = curl_exec($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($response === false || $status >= 400) {
+            throw new RuntimeException('Failed to get category tree');
+        }
+        return json_decode($response, true) ?? [];
+    }
 }

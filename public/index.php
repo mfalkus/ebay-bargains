@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/config.php';
 require_once dirname(__DIR__) . '/src/EbayApi.php';
+require_once dirname(__DIR__) . '/src/CategoryTreeLoader.php';
 
 // Default category: Laptops & Netbooks
 $defaultCategory = '177';
@@ -26,23 +27,8 @@ $buyingOptionFilters = [
     'FIXED_PRICE' => 'Buy it now only',
 ];
 
-// Technical categories (IDs can vary by marketplace; these are common on eBay US/UK)
-$techCategories = [
-    '177'     => 'PC Laptops & Netbooks',
-    '175672'  => 'Laptops & Netbooks',
-    '179'     => 'PC Desktops & All-In-One',
-    '171485'  => 'Tablets & eBook Readers',
-    '9355'    => 'Cell Phones & Smartphones',
-    '111422'  => 'Apple Laptops & Notebooks',
-    '164'     => 'Computer Components (CPUs, etc.)',
-    '56083'   => 'Internal Hard Disk Drives',
-    '165'     => 'Computer Drives & Storage',
-    '3673'    => 'Networking',
-    '182067'  => 'Computer Cables & Connectors',
-    '159260'  => 'Computer Memory (RAM)',
-];
-
 $error = '';
+$categoryList = []; // Flattened categories from API (id, name, path, level)
 $items = [];
 $total = 0;
 $queryUsed = '';
@@ -58,20 +44,6 @@ if ($clientId === '' || $clientSecret === '') {
     $error = 'Set EBAY_CLIENT_ID and EBAY_CLIENT_SECRET in .env or environment. See README.';
 } else {
     $queryUsed = trim((string) ($_GET['q'] ?? $_GET['search'] ?? ''));
-    $categoryInput = $_GET['category_ids'] ?? null;
-    if (is_array($categoryInput)) {
-        $categoryIdsSelected = array_values(array_intersect(array_keys($techCategories), array_filter($categoryInput)));
-    } elseif (is_string($categoryInput) && $categoryInput !== '') {
-        $categoryIdsSelected = array_intersect(explode(',', $categoryInput), array_keys($techCategories));
-        $categoryIdsSelected = array_values(array_filter($categoryIdsSelected));
-    } else {
-        $categoryIdsSelected = [$defaultCategory];
-    }
-    if ($categoryIdsSelected === []) {
-        $categoryIdsSelected = [$defaultCategory];
-    }
-    $categoryIdsSelected = array_map('strval', $categoryIdsSelected);
-    $categoryUsed = implode(',', $categoryIdsSelected);
     $maxPriceUsed = trim((string) ($_GET['max_price'] ?? $defaultMaxPrice));
     $locationUsed = $_GET['location'] ?? $defaultLocation;
     $currencyUsed = $_GET['currency'] ?? $defaultCurrency;
@@ -91,6 +63,29 @@ if ($clientId === '' || $clientSecret === '') {
         $buyingOptionUsed = 'all';
     }
 
+    $api = new EbayApi($clientId, $clientSecret);
+    try {
+        $loader = new CategoryTreeLoader($api);
+        $categoryList = $loader->getFlattenedCategories($marketplaceUsed);
+    } catch (Throwable $e) {
+        $categoryList = [];
+    }
+
+    $validIds = $categoryList !== [] ? array_column($categoryList, 'id') : [$defaultCategory];
+    $categoryInput = $_GET['category_ids'] ?? null;
+    if (is_array($categoryInput)) {
+        $categoryIdsSelected = array_values(array_intersect($validIds, array_map('strval', array_filter($categoryInput))));
+    } elseif (is_string($categoryInput) && $categoryInput !== '') {
+        $categoryIdsSelected = array_values(array_intersect($validIds, array_map('trim', explode(',', $categoryInput))));
+    } else {
+        $categoryIdsSelected = [$defaultCategory];
+    }
+    if ($categoryIdsSelected === []) {
+        $categoryIdsSelected = [$defaultCategory];
+    }
+    $categoryIdsSelected = array_map('strval', $categoryIdsSelected);
+    $categoryUsed = implode(',', $categoryIdsSelected);
+
     $maxPriceInt = (int) $maxPriceUsed;
     if ($maxPriceInt <= 0) {
         $maxPriceInt = 500;
@@ -105,7 +100,6 @@ if ($clientId === '' || $clientSecret === '') {
     }
 
     try {
-        $api = new EbayApi($clientId, $clientSecret);
         $params = [
             'q' => $queryUsed,
             'category_ids' => $categoryUsed,
@@ -297,6 +291,40 @@ $pageTitle = 'Cheap tech ending soon';
             cursor: pointer;
         }
         .theme-toggle:hover { border-color: var(--accent); }
+        .category-picker { min-width: 280px; }
+        .category-picker .search-wrap { position: relative; }
+        .category-picker .search-input { width: 100%; }
+        .category-picker .dropdown {
+            position: absolute;
+            left: 0; right: 0; top: 100%;
+            margin-top: 2px;
+            max-height: 280px;
+            overflow-y: auto;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            z-index: 10;
+            display: none;
+        }
+        .category-picker .dropdown.open { display: block; }
+        .category-picker .dropdown-item {
+            padding: 0.4rem 0.6rem;
+            cursor: pointer;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .category-picker .dropdown-item:hover { background: rgba(34,197,94,0.1); }
+        .category-picker .dropdown-item .path { color: var(--muted); }
+        .category-picker .selected-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.5rem; }
+        .category-picker .chip {
+            display: inline-flex; align-items: center; gap: 0.35rem;
+            padding: 0.25rem 0.5rem;
+            background: var(--border);
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        .category-picker .chip-remove { cursor: pointer; color: var(--muted); }
+        .category-picker .chip-remove:hover { color: var(--danger); }
     </style>
 </head>
 <body>
@@ -310,16 +338,17 @@ $pageTitle = 'Cheap tech ending soon';
             <label for="q">Keyword</label>
             <input type="text" id="q" name="q" value="<?= htmlspecialchars($queryUsed) ?>" placeholder="Keyword (optional)">
         </div>
-        <div class="field field-categories">
-            <label for="category_ids">Categories</label>
-            <select id="category_ids" name="category_ids[]" multiple size="6">
-                <?php foreach ($techCategories as $id => $label): ?>
-                    <?php $idStr = (string) $id; ?>
-                    <option value="<?= htmlspecialchars($idStr) ?>" <?= in_array($idStr, $categoryIdsSelected, true) ? 'selected' : '' ?>><?= htmlspecialchars($label) ?> (<?= htmlspecialchars($idStr) ?>)</option>
-                <?php endforeach; ?>
-            </select>
-            <span class="field-hint">Ctrl/Cmd+click to select multiple</span>
+        <div class="field field-categories category-picker">
+            <label for="category_search">Categories</label>
+            <div class="search-wrap">
+                <input type="text" id="category_search" class="search-input" placeholder="Search categories…" autocomplete="off">
+                <div id="category_dropdown" class="dropdown" role="listbox"></div>
+            </div>
+            <div id="category_hidden_container"></div>
+            <div id="category_selected_chips" class="selected-chips"></div>
+            <span class="field-hint">Search and click to add one or more categories</span>
         </div>
+        <script type="application/json" id="category_list_data"><?= json_encode(['list' => $categoryList, 'selected' => $categoryIdsSelected]) ?></script>
         <div class="field">
             <label for="max_price">Max price</label>
             <input type="number" id="max_price" name="max_price" value="<?= htmlspecialchars($maxPriceUsed) ?>" min="0.01" step="any" placeholder="e.g. 30">
@@ -477,6 +506,121 @@ $pageTitle = 'Cheap tech ending soon';
     <?php endif; ?>
 
     <script>
+    (function() {
+        var dataEl = document.getElementById('category_list_data');
+        var list = [];
+        var selected = [];
+        if (dataEl) {
+            try {
+                var data = JSON.parse(dataEl.textContent);
+                list = data.list || [];
+                selected = data.selected || [];
+            } catch (e) {}
+        }
+        var byId = {};
+        list.forEach(function(c) { byId[c.id] = c; });
+        var container = document.getElementById('category_hidden_container');
+        var dropdown = document.getElementById('category_dropdown');
+        var searchInput = document.getElementById('category_search');
+        var chipsEl = document.getElementById('category_selected_chips');
+        var MAX_RESULTS = 80;
+
+        function syncHiddenInputs() {
+            if (!container) return;
+            container.innerHTML = '';
+            selected.forEach(function(id) {
+                var inp = document.createElement('input');
+                inp.type = 'hidden';
+                inp.name = 'category_ids[]';
+                inp.value = id;
+                container.appendChild(inp);
+            });
+        }
+        function renderChips() {
+            if (!chipsEl) return;
+            chipsEl.innerHTML = '';
+            selected.forEach(function(id) {
+                var c = byId[id];
+                var label = c ? c.path : (id + '');
+                var chip = document.createElement('span');
+                chip.className = 'chip';
+                chip.innerHTML = '<span>' + escapeHtml(label) + '</span> <button type="button" class="chip-remove" data-id="' + escapeHtml(id) + '" aria-label="Remove">×</button>';
+                chipsEl.appendChild(chip);
+            });
+        }
+        function escapeHtml(s) {
+            var div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+        function addSelected(id) {
+            if (selected.indexOf(id) === -1) {
+                selected.push(id);
+                syncHiddenInputs();
+                renderChips();
+            }
+            if (searchInput) searchInput.value = '';
+            if (dropdown) dropdown.classList.remove('open');
+        }
+        function removeSelected(id) {
+            selected = selected.filter(function(x) { return x !== id; });
+            syncHiddenInputs();
+            renderChips();
+        }
+        function filterList(q) {
+            q = (q || '').toLowerCase().trim();
+            if (q.length < 2) return list.slice(0, MAX_RESULTS);
+            return list.filter(function(c) {
+                return c.path.toLowerCase().indexOf(q) !== -1 || c.name.toLowerCase().indexOf(q) !== -1;
+            }).slice(0, MAX_RESULTS);
+        }
+        function showDropdown(items) {
+            if (!dropdown) return;
+            dropdown.innerHTML = '';
+            if (items.length === 0) {
+                dropdown.innerHTML = '<div class="dropdown-item" style="cursor:default;color:var(--muted)">No matches. Type to search.</div>';
+            } else {
+                items.forEach(function(c) {
+                    var div = document.createElement('div');
+                    div.className = 'dropdown-item';
+                    div.role = 'option';
+                    div.setAttribute('data-id', c.id);
+                    div.innerHTML = '<span class="path">' + escapeHtml(c.path) + '</span>';
+                    dropdown.appendChild(div);
+                });
+            }
+            dropdown.classList.add('open');
+        }
+        function hideDropdown() {
+            if (dropdown) dropdown.classList.remove('open');
+        }
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                var items = filterList(this.value);
+                showDropdown(items);
+            });
+            searchInput.addEventListener('focus', function() {
+                if (this.value.trim().length >= 2) showDropdown(filterList(this.value));
+                else showDropdown(list.slice(0, MAX_RESULTS));
+            });
+        }
+        document.addEventListener('click', function(e) {
+            if (dropdown && dropdown.classList.contains('open') && !dropdown.contains(e.target) && searchInput && !searchInput.contains(e.target))
+                hideDropdown();
+        });
+        if (dropdown) {
+            dropdown.addEventListener('click', function(e) {
+                var item = e.target.closest('.dropdown-item[data-id]');
+                if (item) addSelected(item.getAttribute('data-id'));
+            });
+        }
+        chipsEl && chipsEl.addEventListener('click', function(e) {
+            var btn = e.target.closest('.chip-remove');
+            if (btn) removeSelected(btn.getAttribute('data-id'));
+        });
+        syncHiddenInputs();
+        renderChips();
+    })();
     document.querySelectorAll('.relative-time').forEach(function(el) {
         var end = el.getAttribute('data-end');
         if (end && typeof moment !== 'undefined') {

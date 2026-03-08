@@ -1,5 +1,6 @@
 .env
 vendor/
+cache/
 .idea/
 *.swp
 .DS_Store
