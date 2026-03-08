@@ -5,39 +5,115 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/config.php';
 require_once dirname(__DIR__) . '/src/EbayApi.php';
 
-// Default category: Laptops & Netbooks (eBay US)
+// Default category: Laptops & Netbooks
 $defaultCategory = '177';
-$defaultMaxPrice = '300';
+$defaultMaxPrice = '30';
+$defaultLocation = 'GB';   // UK Only
+$defaultCurrency = 'GBP';
 $limit = 200;
+
+$locations = [
+    'GB' => 'UK Only',
+    'US' => 'US Only',
+    ''   => 'Any',
+];
+$currencies = ['GBP' => 'GBP', 'USD' => 'USD', 'EUR' => 'EUR'];
+$currencySymbols = ['GBP' => '£', 'USD' => '$', 'EUR' => '€'];
+$marketplaces = ['EBAY_GB' => 'eBay UK', 'EBAY_US' => 'eBay US'];
+$buyingOptionFilters = [
+    'all' => 'All',
+    'AUCTION' => 'Auction only',
+    'FIXED_PRICE' => 'Buy it now only',
+];
+
+// Technical categories (IDs can vary by marketplace; these are common on eBay US/UK)
+$techCategories = [
+    '177'     => 'PC Laptops & Netbooks',
+    '175672'  => 'Laptops & Netbooks',
+    '179'     => 'PC Desktops & All-In-One',
+    '171485'  => 'Tablets & eBook Readers',
+    '9355'    => 'Cell Phones & Smartphones',
+    '111422'  => 'Apple Laptops & Notebooks',
+    '164'     => 'Computer Components (CPUs, etc.)',
+    '56083'   => 'Internal Hard Disk Drives',
+    '165'     => 'Computer Drives & Storage',
+    '3673'    => 'Networking',
+    '182067'  => 'Computer Cables & Connectors',
+    '159260'  => 'Computer Memory (RAM)',
+];
 
 $error = '';
 $items = [];
 $total = 0;
-$queryUsed = 'laptop';
+$queryUsed = '';
 $categoryUsed = $defaultCategory;
+$categoryIdsSelected = [$defaultCategory];
 $maxPriceUsed = $defaultMaxPrice;
+$locationUsed = $defaultLocation;
+$currencyUsed = $defaultCurrency;
+$marketplaceUsed = 'EBAY_GB';
+$buyingOptionUsed = 'all';
 
 if ($clientId === '' || $clientSecret === '') {
     $error = 'Set EBAY_CLIENT_ID and EBAY_CLIENT_SECRET in .env or environment. See README.';
 } else {
-    $queryUsed = trim((string) ($_GET['q'] ?? $_GET['search'] ?? 'laptop'));
-    $categoryUsed = trim((string) ($_GET['category_ids'] ?? $defaultCategory));
+    $queryUsed = trim((string) ($_GET['q'] ?? $_GET['search'] ?? ''));
+    $categoryInput = $_GET['category_ids'] ?? null;
+    if (is_array($categoryInput)) {
+        $categoryIdsSelected = array_values(array_intersect(array_keys($techCategories), array_filter($categoryInput)));
+    } elseif (is_string($categoryInput) && $categoryInput !== '') {
+        $categoryIdsSelected = array_intersect(explode(',', $categoryInput), array_keys($techCategories));
+        $categoryIdsSelected = array_values(array_filter($categoryIdsSelected));
+    } else {
+        $categoryIdsSelected = [$defaultCategory];
+    }
+    if ($categoryIdsSelected === []) {
+        $categoryIdsSelected = [$defaultCategory];
+    }
+    $categoryIdsSelected = array_map('strval', $categoryIdsSelected);
+    $categoryUsed = implode(',', $categoryIdsSelected);
     $maxPriceUsed = trim((string) ($_GET['max_price'] ?? $defaultMaxPrice));
+    $locationUsed = $_GET['location'] ?? $defaultLocation;
+    $currencyUsed = $_GET['currency'] ?? $defaultCurrency;
+    $marketplaceUsed = $_GET['marketplace'] ?? 'EBAY_GB';
+    $buyingOptionUsed = $_GET['buying_option'] ?? 'all';
+
+    if (!array_key_exists($locationUsed, $locations)) {
+        $locationUsed = $defaultLocation;
+    }
+    if (!array_key_exists($currencyUsed, $currencies)) {
+        $currencyUsed = $defaultCurrency;
+    }
+    if (!array_key_exists($marketplaceUsed, $marketplaces)) {
+        $marketplaceUsed = 'EBAY_GB';
+    }
+    if (!array_key_exists($buyingOptionUsed, $buyingOptionFilters)) {
+        $buyingOptionUsed = 'all';
+    }
+
     $maxPriceInt = (int) $maxPriceUsed;
     if ($maxPriceInt <= 0) {
         $maxPriceInt = 500;
     }
 
+    $buyingOptionFilter = $buyingOptionUsed === 'all'
+        ? 'buyingOptions:{AUCTION|FIXED_PRICE}'
+        : 'buyingOptions:{' . $buyingOptionUsed . '}';
+    $filterParts = [$buyingOptionFilter, 'price:[..' . $maxPriceInt . ']', 'priceCurrency:' . $currencyUsed];
+    if ($locationUsed !== '') {
+        $filterParts[] = 'deliveryCountry:' . $locationUsed;
+    }
+
     try {
         $api = new EbayApi($clientId, $clientSecret);
         $params = [
-            'q' => $queryUsed !== '' ? $queryUsed : 'laptop',
+            'q' => $queryUsed,
             'category_ids' => $categoryUsed,
             'sort' => 'endingSoonest',
             'limit' => (string) min($limit, 200),
-            'filter' => 'buyingOptions:{AUCTION|FIXED_PRICE},price:[..' . $maxPriceInt . '],priceCurrency:USD',
+            'filter' => implode(',', $filterParts),
         ];
-        $result = $api->search($params);
+        $result = $api->search($params, $marketplaceUsed);
         $items = $result['itemSummaries'] ?? [];
         $total = (int) ($result['total'] ?? 0);
     } catch (Throwable $e) {
@@ -45,7 +121,7 @@ if ($clientId === '' || $clientSecret === '') {
     }
 }
 
-$pageTitle = 'eBay – cheap laptops ending soon';
+$pageTitle = 'Cheap tech ending soon';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -53,6 +129,7 @@ $pageTitle = 'eBay – cheap laptops ending soon';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($pageTitle) ?></title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment.min.js" crossorigin="anonymous"></script>
     <style>
         :root {
             --bg: #0f0f12;
@@ -93,6 +170,8 @@ $pageTitle = 'eBay – cheap laptops ending soon';
         }
         .field { display: flex; flex-direction: column; gap: 0.25rem; }
         .field label { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+        .field-hint { color: var(--muted); font-size: 11px; display: block; margin-top: 0.25rem; }
+        .field-categories select[multiple] { min-width: 220px; }
         .form input, .form select {
             background: var(--bg);
             border: 1px solid var(--border);
@@ -168,14 +247,16 @@ $pageTitle = 'eBay – cheap laptops ending soon';
             text-decoration: none;
         }
         .col-title a:hover { text-decoration: underline; }
-        .col-price { width: 90px; }
+        .col-price { width: 90px; text-align: right; }
+        .col-total { width: 90px; text-align: right; }
+        .col-buying { width: 85px; }
         .col-end { width: 140px; }
         .col-bids { width: 60px; text-align: center; }
         .col-condition { width: 80px; }
         .col-link { width: 50px; text-align: center; }
         .price { font-weight: 600; color: var(--accent); }
+        .total-na { color: var(--muted); }
         .end-soon { color: var(--danger); }
-        .buying-auction { color: var(--muted); font-size: 11px; }
     </style>
 </head>
 <body>
@@ -184,15 +265,53 @@ $pageTitle = 'eBay – cheap laptops ending soon';
     <form class="form" method="get" action="">
         <div class="field">
             <label for="q">Keyword</label>
-            <input type="text" id="q" name="q" value="<?= htmlspecialchars($queryUsed) ?>" placeholder="e.g. laptop">
+            <input type="text" id="q" name="q" value="<?= htmlspecialchars($queryUsed) ?>" placeholder="Keyword (optional)">
+        </div>
+        <div class="field field-categories">
+            <label for="category_ids">Categories</label>
+            <select id="category_ids" name="category_ids[]" multiple size="6">
+                <?php foreach ($techCategories as $id => $label): ?>
+                    <?php $idStr = (string) $id; ?>
+                    <option value="<?= htmlspecialchars($idStr) ?>" <?= in_array($idStr, $categoryIdsSelected, true) ? 'selected' : '' ?>><?= htmlspecialchars($label) ?> (<?= htmlspecialchars($idStr) ?>)</option>
+                <?php endforeach; ?>
+            </select>
+            <span class="field-hint">Ctrl/Cmd+click to select multiple</span>
         </div>
         <div class="field">
-            <label for="category_ids">Category ID</label>
-            <input type="text" id="category_ids" name="category_ids" value="<?= htmlspecialchars($categoryUsed) ?>" placeholder="177">
+            <label for="max_price">Max price</label>
+            <input type="number" id="max_price" name="max_price" value="<?= htmlspecialchars($maxPriceUsed) ?>" min="0.01" step="any" placeholder="e.g. 30">
         </div>
         <div class="field">
-            <label for="max_price">Max price (USD)</label>
-            <input type="number" id="max_price" name="max_price" value="<?= htmlspecialchars($maxPriceUsed) ?>" min="1" max="5000" step="10">
+            <label for="location">Location</label>
+            <select id="location" name="location">
+                <?php foreach ($locations as $code => $label): ?>
+                    <option value="<?= htmlspecialchars($code) ?>" <?= $locationUsed === $code ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="field">
+            <label for="currency">Currency</label>
+            <select id="currency" name="currency">
+                <?php foreach ($currencies as $code => $label): ?>
+                    <option value="<?= htmlspecialchars($code) ?>" <?= $currencyUsed === $code ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="field">
+            <label for="marketplace">Marketplace</label>
+            <select id="marketplace" name="marketplace">
+                <?php foreach ($marketplaces as $code => $label): ?>
+                    <option value="<?= htmlspecialchars($code) ?>" <?= $marketplaceUsed === $code ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="field">
+            <label for="buying_option">Auction / Buy it now</label>
+            <select id="buying_option" name="buying_option">
+                <?php foreach ($buyingOptionFilters as $code => $label): ?>
+                    <option value="<?= htmlspecialchars($code) ?>" <?= $buyingOptionUsed === $code ? 'selected' : '' ?>><?= htmlspecialchars($label) ?></option>
+                <?php endforeach; ?>
+            </select>
         </div>
         <div class="field">
             <button type="submit">Search (ending soon)</button>
@@ -205,7 +324,7 @@ $pageTitle = 'eBay – cheap laptops ending soon';
 
     <?php if ($error === '' && ($queryUsed !== '' || $categoryUsed !== '')): ?>
         <div class="meta">
-            <?= count($items) ?> items shown (total <?= $total ?>). Sorted by ending soonest. Category <?= htmlspecialchars($categoryUsed) ?>, max $<?= htmlspecialchars($maxPriceUsed) ?>.
+            <?= count($items) ?> items shown (total <?= $total ?>). Sorted by ending soonest. <?= count($categoryIdsSelected) > 1 ? 'Categories ' : 'Category ' ?><?= htmlspecialchars($categoryUsed) ?>, max <?= htmlspecialchars($currencyUsed) ?> <?= htmlspecialchars($maxPriceUsed) ?><?= $locationUsed !== '' ? ', ' . htmlspecialchars($locations[$locationUsed]) : '' ?>.
         </div>
         <div class="table-wrap">
             <table>
@@ -214,6 +333,8 @@ $pageTitle = 'eBay – cheap laptops ending soon';
                         <th class="col-thumb">Image</th>
                         <th class="col-title">Title</th>
                         <th class="col-price">Price / Bid</th>
+                        <th class="col-total">Total price</th>
+                        <th class="col-buying">Type</th>
                         <th class="col-end">Ends</th>
                         <th class="col-bids">Bids</th>
                         <th class="col-condition">Condition</th>
@@ -238,6 +359,25 @@ $pageTitle = 'eBay – cheap laptops ending soon';
                         $bidCount = $item['bidCount'] ?? null;
                         $buyingOptions = $item['buyingOptions'] ?? [];
                         $isAuction = in_array('AUCTION', $buyingOptions, true);
+                        $isFixed = in_array('FIXED_PRICE', $buyingOptions, true);
+                        $typeLabel = $isAuction && $isFixed ? 'Auction / BIN' : ($isAuction ? 'Auction' : 'Buy it now');
+                        $currencySym = $currencySymbols[$priceCur] ?? $priceCur . ' ';
+                        $priceFormatted = $priceVal !== '' ? $currencySym . number_format((float) $priceVal, 2) : '—';
+                        $shippingCostVal = null;
+                        $shippingOptions = $item['shippingOptions'] ?? [];
+                        foreach ($shippingOptions as $opt) {
+                            $cost = $opt['shippingCost'] ?? null;
+                            if ($cost !== null && isset($cost['value']) && $cost['value'] !== '') {
+                                $shippingCostVal = (float) $cost['value'];
+                                break;
+                            }
+                        }
+                        if ($shippingCostVal !== null && $priceVal !== '') {
+                            $totalVal = (float) $priceVal + $shippingCostVal;
+                            $totalFormatted = $currencySym . number_format($totalVal, 2);
+                        } else {
+                            $totalFormatted = 'n/a';
+                        }
                         $condition = $item['condition'] ?? $item['conditionId'] ?? '—';
                         ?>
                         <tr>
@@ -250,17 +390,22 @@ $pageTitle = 'eBay – cheap laptops ending soon';
                             </td>
                             <td class="col-title">
                                 <a href="<?= htmlspecialchars($url) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($title) ?></a>
-                                <?php if ($isAuction): ?>
-                                    <span class="buying-auction">Auction</span>
-                                <?php endif; ?>
                             </td>
                             <td class="col-price">
-                                <span class="price"><?= $priceVal !== '' ? $priceCur . ' ' . htmlspecialchars($priceVal) : '—' ?></span>
+                                <span class="price"><?= $priceFormatted ?></span>
                             </td>
+                            <td class="col-total">
+                                <?php if ($totalFormatted === 'n/a'): ?>
+                                    <span class="total-na">n/a</span>
+                                <?php else: ?>
+                                    <span class="price"><?= $totalFormatted ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="col-buying"><?= htmlspecialchars($typeLabel) ?></td>
                             <td class="col-end <?= $isEndSoon ? 'end-soon' : '' ?>">
                                 <?php
-                                if ($endTs > 0) {
-                                    echo htmlspecialchars(date('M j, Y H:i', $endTs));
+                                if ($endTs > 0 && $endDate !== '') {
+                                    ?><span class="relative-time" data-end="<?= htmlspecialchars($endDate) ?>" title="<?= htmlspecialchars(date('M j, Y H:i', $endTs)) ?>"><?= htmlspecialchars(date('M j, Y H:i', $endTs)) ?></span><?php
                                     if ($isEndSoon) {
                                         echo ' <span class="end-soon">(soon)</span>';
                                     }
@@ -284,8 +429,17 @@ $pageTitle = 'eBay – cheap laptops ending soon';
         <?php endif; ?>
     <?php endif; ?>
 
-    <?php if ($error === '' && $queryUsed === '' && !isset($_GET['category_ids'])): ?>
-        <p class="meta">Enter a keyword (or leave “laptop”) and click Search to load listings sorted by ending soonest.</p>
+    <?php if ($error === '' && $queryUsed === '' && !isset($_GET['category_ids']) && !isset($_GET['q'])): ?>
+        <p class="meta">Pick categories and click Search to load listings sorted by ending soonest. Add a keyword to narrow results.</p>
     <?php endif; ?>
+
+    <script>
+    document.querySelectorAll('.relative-time').forEach(function(el) {
+        var end = el.getAttribute('data-end');
+        if (end && typeof moment !== 'undefined') {
+            el.textContent = moment.utc(end).fromNow();
+        }
+    });
+    </script>
 </body>
 </html>

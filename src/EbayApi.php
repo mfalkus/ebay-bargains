@@ -23,7 +23,11 @@ final class EbayApi
         $this->clientSecret = $clientSecret;
     }
 
-    public function search(array $params): array
+    /**
+     * @param array $params Search query params (q, category_ids, sort, limit, filter, etc.)
+     * @param string $marketplace Marketplace ID, e.g. EBAY_GB or EBAY_US
+     */
+    public function search(array $params, string $marketplace = 'EBAY_GB'): array
     {
         $token = $this->getAccessToken();
         $query = http_build_query(array_filter($params));
@@ -34,7 +38,7 @@ final class EbayApi
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER => [
                 'Authorization: Bearer ' . $token,
-                'X-EBAY-C-MARKETPLACE-ID: EBAY_US',
+                'X-EBAY-C-MARKETPLACE-ID: ' . $marketplace,
                 'Accept: application/json',
             ],
         ]);
