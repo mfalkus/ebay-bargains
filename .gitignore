@@ -1,5 +1,5 @@
 .env
-vendor/
+node_modules/
 cache/
 .idea/
 *.swp

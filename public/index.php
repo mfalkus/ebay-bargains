@@ -123,7 +123,7 @@ $pageTitle = 'Cheap tech ending soon';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($pageTitle) ?></title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment.min.js" crossorigin="anonymous"></script>
+    <script src="/vendor/moment.min.js"></script>
     <script>
     (function() {
         var stored = localStorage.getItem('theme');
@@ -132,200 +132,9 @@ $pageTitle = 'Cheap tech ending soon';
         document.documentElement.setAttribute('data-theme', theme);
     })();
     </script>
-    <style>
-        :root {
-            --bg: #0f0f12;
-            --surface: #18181c;
-            --border: #2a2a30;
-            --text: #e4e4e7;
-            --muted: #71717a;
-            --accent: #22c55e;
-            --link: #38bdf8;
-            --danger: #f87171;
-        }
-        [data-theme="light"] {
-            --bg: #f4f4f5;
-            --surface: #ffffff;
-            --border: #e4e4e7;
-            --text: #18181b;
-            --muted: #71717a;
-            --accent: #16a34a;
-            --link: #0284c7;
-            --danger: #dc2626;
-        }
-        [data-theme="light"] .col-thumb img { background: #e4e4e7; }
-        [data-theme="light"] tr:hover td { background: rgba(22,163,74,0.08); }
-        * { box-sizing: border-box; }
-        body {
-            font-family: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
-            background: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 1rem;
-            font-size: 13px;
-            line-height: 1.4;
-        }
-        h1 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin: 0 0 1rem;
-            color: var(--accent);
-        }
-        .form {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-            align-items: flex-end;
-            margin-bottom: 1rem;
-            padding: 1rem;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-        }
-        .field { display: flex; flex-direction: column; gap: 0.25rem; }
-        .field label { color: var(--muted); font-size: 11px; text-transform: uppercase; }
-        .field-hint { color: var(--muted); font-size: 11px; display: block; margin-top: 0.25rem; }
-        .field-categories select[multiple] { min-width: 220px; }
-        .form input, .form select {
-            background: var(--bg);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 0.5rem 0.6rem;
-            border-radius: 4px;
-            font-family: inherit;
-            font-size: 13px;
-        }
-        .form input:focus, .form select:focus {
-            outline: none;
-            border-color: var(--accent);
-        }
-        button {
-            background: var(--accent);
-            color: var(--bg);
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            font-family: inherit;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        button:hover { filter: brightness(1.1); }
-        .error {
-            background: rgba(248,113,113,0.15);
-            border: 1px solid var(--danger);
-            color: var(--danger);
-            padding: 0.75rem 1rem;
-            border-radius: 6px;
-            margin-bottom: 1rem;
-        }
-        .meta {
-            color: var(--muted);
-            margin-bottom: 0.75rem;
-        }
-        .table-wrap {
-            overflow-x: auto;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            background: var(--surface);
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            table-layout: fixed;
-        }
-        th, td {
-            padding: 0.5rem 0.6rem;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-            vertical-align: top;
-        }
-        th {
-            color: var(--muted);
-            font-size: 11px;
-            text-transform: uppercase;
-            font-weight: 600;
-        }
-        tr:hover td { background: rgba(34,197,94,0.06); }
-        .col-thumb { width: 70px; }
-        .col-thumb img {
-            width: 56px;
-            height: 56px;
-            object-fit: contain;
-            background: var(--bg);
-            border-radius: 4px;
-        }
-        .col-title { width: 28%; }
-        .col-title a {
-            color: var(--link);
-            text-decoration: none;
-        }
-        .col-title a:hover { text-decoration: underline; }
-        .col-price { width: 90px; text-align: right; }
-        .col-total { width: 90px; text-align: right; }
-        .col-buying { width: 85px; }
-        .col-end { width: 140px; }
-        .col-bids { width: 60px; text-align: center; }
-        .col-condition { width: 80px; }
-        .col-link { width: 50px; text-align: center; }
-        .price { font-weight: 600; color: var(--accent); }
-        .total-na { color: var(--muted); }
-        .end-soon { color: var(--danger); }
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1rem;
-            flex-wrap: wrap;
-        }
-        .page-header h1 { margin: 0; }
-        .theme-toggle {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            color: var(--text);
-            padding: 0.4rem 0.75rem;
-            border-radius: 6px;
-            font-family: inherit;
-            font-size: 12px;
-            cursor: pointer;
-        }
-        .theme-toggle:hover { border-color: var(--accent); }
-        .category-picker { min-width: 280px; }
-        .category-picker .search-wrap { position: relative; }
-        .category-picker .search-input { width: 100%; }
-        .category-picker .dropdown {
-            position: absolute;
-            left: 0; right: 0; top: 100%;
-            margin-top: 2px;
-            max-height: 280px;
-            overflow-y: auto;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            z-index: 10;
-            display: none;
-        }
-        .category-picker .dropdown.open { display: block; }
-        .category-picker .dropdown-item {
-            padding: 0.4rem 0.6rem;
-            cursor: pointer;
-            font-size: 12px;
-            border-bottom: 1px solid var(--border);
-        }
-        .category-picker .dropdown-item:hover { background: rgba(34,197,94,0.1); }
-        .category-picker .dropdown-item .path { color: var(--muted); }
-        .category-picker .selected-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.5rem; }
-        .category-picker .chip {
-            display: inline-flex; align-items: center; gap: 0.35rem;
-            padding: 0.25rem 0.5rem;
-            background: var(--border);
-            border-radius: 4px;
-            font-size: 11px;
-        }
-        .category-picker .chip-remove { cursor: pointer; color: var(--muted); }
-        .category-picker .chip-remove:hover { color: var(--danger); }
-    </style>
+    <link href="/vendor/tom-select.css" rel="stylesheet">
+    <link href="/css/app.css" rel="stylesheet">
+    <script src="/vendor/tom-select.complete.min.js"></script>
 </head>
 <body>
     <header class="page-header">
@@ -338,15 +147,10 @@ $pageTitle = 'Cheap tech ending soon';
             <label for="q">Keyword</label>
             <input type="text" id="q" name="q" value="<?= htmlspecialchars($queryUsed) ?>" placeholder="Keyword (optional)">
         </div>
-        <div class="field field-categories category-picker">
-            <label for="category_search">Categories</label>
-            <div class="search-wrap">
-                <input type="text" id="category_search" class="search-input" placeholder="Search categories…" autocomplete="off">
-                <div id="category_dropdown" class="dropdown" role="listbox"></div>
-            </div>
-            <div id="category_hidden_container"></div>
-            <div id="category_selected_chips" class="selected-chips"></div>
-            <span class="field-hint">Search and click to add one or more categories</span>
+        <div class="field field-categories">
+            <label for="category_select">Categories</label>
+            <select id="category_select" name="category_ids[]" multiple placeholder="Search categories…"></select>
+            <span class="field-hint">Type to search; select one or more categories</span>
         </div>
         <script type="application/json" id="category_list_data"><?= json_encode(['list' => $categoryList, 'selected' => $categoryIdsSelected]) ?></script>
         <div class="field">
@@ -517,109 +321,20 @@ $pageTitle = 'Cheap tech ending soon';
                 selected = data.selected || [];
             } catch (e) {}
         }
-        var byId = {};
-        list.forEach(function(c) { byId[c.id] = c; });
-        var container = document.getElementById('category_hidden_container');
-        var dropdown = document.getElementById('category_dropdown');
-        var searchInput = document.getElementById('category_search');
-        var chipsEl = document.getElementById('category_selected_chips');
-        var MAX_RESULTS = 80;
-
-        function syncHiddenInputs() {
-            if (!container) return;
-            container.innerHTML = '';
-            selected.forEach(function(id) {
-                var inp = document.createElement('input');
-                inp.type = 'hidden';
-                inp.name = 'category_ids[]';
-                inp.value = id;
-                container.appendChild(inp);
+        var options = list.map(function(c) { return { value: c.id, text: c.path }; });
+        var el = document.getElementById('category_select');
+        if (el && typeof TomSelect !== 'undefined') {
+            new TomSelect(el, {
+                options: options,
+                items: selected,
+                valueField: 'value',
+                labelField: 'text',
+                searchField: ['text'],
+                maxItems: null,
+                maxOptions: 200,
+                placeholder: 'Search categories…'
             });
         }
-        function renderChips() {
-            if (!chipsEl) return;
-            chipsEl.innerHTML = '';
-            selected.forEach(function(id) {
-                var c = byId[id];
-                var label = c ? c.path : (id + '');
-                var chip = document.createElement('span');
-                chip.className = 'chip';
-                chip.innerHTML = '<span>' + escapeHtml(label) + '</span> <button type="button" class="chip-remove" data-id="' + escapeHtml(id) + '" aria-label="Remove">×</button>';
-                chipsEl.appendChild(chip);
-            });
-        }
-        function escapeHtml(s) {
-            var div = document.createElement('div');
-            div.textContent = s;
-            return div.innerHTML;
-        }
-        function addSelected(id) {
-            if (selected.indexOf(id) === -1) {
-                selected.push(id);
-                syncHiddenInputs();
-                renderChips();
-            }
-            if (searchInput) searchInput.value = '';
-            if (dropdown) dropdown.classList.remove('open');
-        }
-        function removeSelected(id) {
-            selected = selected.filter(function(x) { return x !== id; });
-            syncHiddenInputs();
-            renderChips();
-        }
-        function filterList(q) {
-            q = (q || '').toLowerCase().trim();
-            if (q.length < 2) return list.slice(0, MAX_RESULTS);
-            return list.filter(function(c) {
-                return c.path.toLowerCase().indexOf(q) !== -1 || c.name.toLowerCase().indexOf(q) !== -1;
-            }).slice(0, MAX_RESULTS);
-        }
-        function showDropdown(items) {
-            if (!dropdown) return;
-            dropdown.innerHTML = '';
-            if (items.length === 0) {
-                dropdown.innerHTML = '<div class="dropdown-item" style="cursor:default;color:var(--muted)">No matches. Type to search.</div>';
-            } else {
-                items.forEach(function(c) {
-                    var div = document.createElement('div');
-                    div.className = 'dropdown-item';
-                    div.role = 'option';
-                    div.setAttribute('data-id', c.id);
-                    div.innerHTML = '<span class="path">' + escapeHtml(c.path) + '</span>';
-                    dropdown.appendChild(div);
-                });
-            }
-            dropdown.classList.add('open');
-        }
-        function hideDropdown() {
-            if (dropdown) dropdown.classList.remove('open');
-        }
-        if (searchInput) {
-            searchInput.addEventListener('input', function() {
-                var items = filterList(this.value);
-                showDropdown(items);
-            });
-            searchInput.addEventListener('focus', function() {
-                if (this.value.trim().length >= 2) showDropdown(filterList(this.value));
-                else showDropdown(list.slice(0, MAX_RESULTS));
-            });
-        }
-        document.addEventListener('click', function(e) {
-            if (dropdown && dropdown.classList.contains('open') && !dropdown.contains(e.target) && searchInput && !searchInput.contains(e.target))
-                hideDropdown();
-        });
-        if (dropdown) {
-            dropdown.addEventListener('click', function(e) {
-                var item = e.target.closest('.dropdown-item[data-id]');
-                if (item) addSelected(item.getAttribute('data-id'));
-            });
-        }
-        chipsEl && chipsEl.addEventListener('click', function(e) {
-            var btn = e.target.closest('.chip-remove');
-            if (btn) removeSelected(btn.getAttribute('data-id'));
-        });
-        syncHiddenInputs();
-        renderChips();
     })();
     document.querySelectorAll('.relative-time').forEach(function(el) {
         var end = el.getAttribute('data-end');

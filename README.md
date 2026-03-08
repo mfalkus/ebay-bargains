@@ -14,6 +14,17 @@ Simple PHP web app that uses the **eBay Browse API** to show an information-dens
 - PHP 8.0+ with `curl` and `json` extensions
 - eBay developer app (Production) with **Browse API** access
 
+## Front-end assets (optional build step)
+
+JS/CSS (moment.js, Tom Select) are served from `public/vendor/`. To refresh them from npm:
+
+```bash
+npm install
+npm run build
+```
+
+This copies `moment.min.js`, `tom-select.css`, and `tom-select.complete.min.js` from `node_modules` into `public/vendor/`. If `public/vendor/` is already populated (e.g. committed), you can run the app without Node/npm.
+
 ## Setup
 
 1. **eBay Developer Account**

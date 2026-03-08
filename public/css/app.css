@@ -1,0 +1,331 @@
+/* ==========================================================================
+   Variables & theme
+   ========================================================================== */
+
+:root {
+    --bg: #0f0f12;
+    --surface: #18181c;
+    --border: #2a2a30;
+    --text: #e4e4e7;
+    --muted: #71717a;
+    --accent: #22c55e;
+    --link: #38bdf8;
+    --danger: #f87171;
+}
+
+[data-theme="light"] {
+    --bg: #f4f4f5;
+    --surface: #ffffff;
+    --border: #e4e4e7;
+    --text: #18181b;
+    --muted: #71717a;
+    --accent: #16a34a;
+    --link: #0284c7;
+    --danger: #dc2626;
+}
+
+[data-theme="light"] .col-thumb img {
+    background: #e4e4e7;
+}
+
+[data-theme="light"] tr:hover td {
+    background: rgba(22, 163, 74, 0.08);
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 1rem;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+h1 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 1rem;
+    color: var(--accent);
+}
+
+/* ==========================================================================
+   Page header & theme toggle
+   ========================================================================== */
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.page-header h1 {
+    margin: 0;
+}
+
+.theme-toggle {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.theme-toggle:hover {
+    border-color: var(--accent);
+}
+
+/* ==========================================================================
+   Form
+   ========================================================================== */
+
+.form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: flex-end;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.field label {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+.field-hint {
+    color: var(--muted);
+    font-size: 11px;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+.form input,
+.form select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.5rem 0.6rem;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 13px;
+}
+
+.form input:focus,
+.form select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+button {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+button:hover {
+    filter: brightness(1.1);
+}
+
+/* Category picker (Tom Select) overrides */
+.field-categories .ts-wrapper {
+    min-width: 280px;
+}
+
+.field-categories .ts-control {
+    background: var(--bg);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+.field-categories .ts-control input {
+    color: var(--text);
+}
+
+.field-categories .ts-dropdown {
+    background: var(--surface);
+    border-color: var(--border);
+}
+
+.field-categories .ts-dropdown .option {
+    color: var(--text);
+}
+
+.field-categories .ts-dropdown .option.active {
+    background: rgba(34, 197, 94, 0.2);
+    color: var(--accent);
+}
+
+.field-categories .ts-dropdown .option:hover {
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.field-categories .ts-wrapper.multi .ts-control > div {
+    background: var(--border);
+    color: var(--text);
+    border-radius: 4px;
+}
+
+.field-categories .ts-wrapper.multi .ts-control > div .remove {
+    color: var(--muted);
+    border-color: var(--muted);
+}
+
+.field-categories .ts-wrapper.multi .ts-control > div .remove:hover {
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+/* ==========================================================================
+   Messages
+   ========================================================================== */
+
+.error {
+    background: rgba(248, 113, 113, 0.15);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+}
+
+.meta {
+    color: var(--muted);
+    margin-bottom: 0.75rem;
+}
+
+/* ==========================================================================
+   Results table
+   ========================================================================== */
+
+.table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+th,
+td {
+    padding: 0.5rem 0.6rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+}
+
+th {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+tr:hover td {
+    background: rgba(34, 197, 94, 0.06);
+}
+
+.col-thumb {
+    width: 70px;
+}
+
+.col-thumb img {
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+    background: var(--bg);
+    border-radius: 4px;
+}
+
+.col-title {
+    width: 28%;
+}
+
+.col-title a {
+    color: var(--link);
+    text-decoration: none;
+}
+
+.col-title a:hover {
+    text-decoration: underline;
+}
+
+.col-price {
+    width: 90px;
+    text-align: right;
+}
+
+.col-total {
+    width: 90px;
+    text-align: right;
+}
+
+.col-buying {
+    width: 85px;
+}
+
+.col-end {
+    width: 140px;
+}
+
+.col-bids {
+    width: 60px;
+    text-align: center;
+}
+
+.col-condition {
+    width: 80px;
+}
+
+.col-link {
+    width: 50px;
+    text-align: center;
+}
+
+.price {
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.total-na {
+    color: var(--muted);
+}
+
+.end-soon {
+    color: var(--danger);
+}
