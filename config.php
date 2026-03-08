@@ -25,3 +25,5 @@ $clientSecret = $getEnv('EBAY_CLIENT_SECRET') ?: '';
 
 $unlimitedIpsRaw = $getEnv('UNLIMITED_IPS') ?: '';
 $unlimitedIps = array_values(array_filter(array_map('trim', explode(',', $unlimitedIpsRaw))));
+
+$rateLimitContactEmail = trim($getEnv('RATE_LIMIT_CONTACT_EMAIL') ?: '');

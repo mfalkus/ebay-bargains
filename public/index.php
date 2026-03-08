@@ -10,12 +10,59 @@ $clientIp = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 if (isset($_SERVER['HTTP_X_FORWARDED_FOR']) && $_SERVER['HTTP_X_FORWARDED_FOR'] !== '') {
     $clientIp = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0]);
 }
+
+$renderRateLimitPage = function (int $statusCode) use ($rateLimitContactEmail, $clientIp): void {
+    http_response_code($statusCode);
+    if ($statusCode === 429) {
+        header('Retry-After: 60');
+    }
+    header('Content-Type: text/html; charset=utf-8');
+    $email = $rateLimitContactEmail !== '' ? $rateLimitContactEmail : null;
+    $pageTitle = 'Rate limit – eBay Bargains';
+    ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><?= htmlspecialchars($pageTitle) ?></title>
+    <script>
+    (function() {
+        var stored = localStorage.getItem('theme');
+        var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+        var theme = stored === 'light' || stored === 'dark' ? stored : (prefersLight ? 'light' : 'dark');
+        document.documentElement.setAttribute('data-theme', theme);
+    })();
+    </script>
+    <link href="/css/app.css" rel="stylesheet">
+</head>
+<body>
+    <header class="page-header">
+        <h1><?= htmlspecialchars($pageTitle) ?></h1>
+    </header>
+    <div class="rate-limit-box">
+        <p class="rate-limit-title">Too many requests</p>
+        <p class="rate-limit-desc">You've hit the limit (10 per minute, 100 per hour). Please slow down or try again in a minute.</p>
+        <p class="rate-limit-ip">Your IP: <code><?= htmlspecialchars($clientIp) ?></code></p>
+        <?php if ($email !== null): ?>
+        <p class="rate-limit-contact">Need higher limits? Contact <a href="mailto:<?= htmlspecialchars($email) ?>"><?= htmlspecialchars($email) ?></a> to request an increase.</p>
+        <?php endif; ?>
+        <p class="rate-limit-back"><a href="/">← Back to search</a></p>
+    </div>
+</body>
+</html>
+    <?php
+};
+
+// Demo: show rate-limit message without actually enforcing (for testing the 429 page)
+if (isset($_GET['demo_limit']) && $_GET['demo_limit'] !== '' && $_GET['demo_limit'] !== '0') {
+    $renderRateLimitPage(200);
+    exit;
+}
+
 $rateLimiter = new RateLimiter($unlimitedIps, dirname(__DIR__) . '/data/rate_limit');
 if (!$rateLimiter->allowRequest($clientIp)) {
-    http_response_code(429);
-    header('Content-Type: text/plain; charset=utf-8');
-    header('Retry-After: 60');
-    echo 'Too Many Requests. Limit: 10 per minute, 100 per hour.';
+    $renderRateLimitPage(429);
     exit;
 }
 

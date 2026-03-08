@@ -283,6 +283,58 @@ button:hover {
     margin-bottom: 1rem;
 }
 
+.rate-limit-box {
+    max-width: 32rem;
+    padding: 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-top: 1rem;
+}
+
+.rate-limit-box .rate-limit-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--danger);
+    margin: 0 0 0.75rem;
+}
+
+.rate-limit-box .rate-limit-desc {
+    color: var(--text);
+    margin: 0 0 1rem;
+    line-height: 1.5;
+}
+
+.rate-limit-box .rate-limit-ip {
+    margin: 0 0 1rem;
+    color: var(--muted);
+    font-size: 0.9em;
+}
+
+.rate-limit-box .rate-limit-ip code {
+    font-family: inherit;
+    background: var(--bg);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+}
+
+.rate-limit-box .rate-limit-contact {
+    margin: 0 0 1rem;
+    color: var(--muted);
+}
+
+.rate-limit-box .rate-limit-contact a {
+    color: var(--link);
+}
+
+.rate-limit-box .rate-limit-back {
+    margin: 0;
+}
+
+.rate-limit-box .rate-limit-back a {
+    color: var(--accent);
+}
+
 .meta {
     color: var(--muted);
     margin-bottom: 0.75rem;
