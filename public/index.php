@@ -143,16 +143,18 @@ $pageTitle = 'Cheap tech ending soon';
     </header>
 
     <form class="form" method="get" action="">
+        <div class="form-row form-row--full">
+            <div class="field field-categories">
+                <label for="category_select">Categories</label>
+                <select id="category_select" name="category_ids[]" multiple placeholder="Search categories…"></select>
+                <span class="field-hint">Type to search; select one or more categories. Click × on a selected category to remove it.</span>
+            </div>
+        </div>
+        <script type="application/json" id="category_list_data"><?= json_encode(['list' => $categoryList, 'selected' => $categoryIdsSelected]) ?></script>
         <div class="field">
             <label for="q">Keyword</label>
             <input type="text" id="q" name="q" value="<?= htmlspecialchars($queryUsed) ?>" placeholder="Keyword (optional)">
         </div>
-        <div class="field field-categories">
-            <label for="category_select">Categories</label>
-            <select id="category_select" name="category_ids[]" multiple placeholder="Search categories…"></select>
-            <span class="field-hint">Type to search; select one or more categories</span>
-        </div>
-        <script type="application/json" id="category_list_data"><?= json_encode(['list' => $categoryList, 'selected' => $categoryIdsSelected]) ?></script>
         <div class="field">
             <label for="max_price">Max price</label>
             <input type="number" id="max_price" name="max_price" value="<?= htmlspecialchars($maxPriceUsed) ?>" min="0.01" step="any" placeholder="e.g. 30">
@@ -332,7 +334,8 @@ $pageTitle = 'Cheap tech ending soon';
                 searchField: ['text'],
                 maxItems: null,
                 maxOptions: 200,
-                placeholder: 'Search categories…'
+                placeholder: 'Search categories…',
+                plugins: { remove_button: { title: 'Remove category' } }
             });
         }
     })();
