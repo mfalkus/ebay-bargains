@@ -1,11 +1,13 @@
-# eBay Fiddle – Cheap Laptops Ending Soon
+# eBay Fiddle – Bargains Ending Soon
 
-Simple PHP web app that uses the **eBay Browse API** to show an information-dense list of cheap laptops (or any category) sorted by **ending soonest**. No login required; uses app-only OAuth.
+A simple PHP web app that uses the **eBay Browse API** to hunt for potential bargains: browse any category by **keyword** and **category ID**, sorted by **ending soonest**. Great for spotting last-minute auction deals and short-dated listings. No login required; uses app-only OAuth.
+
+![eBay Fiddle – search by category, filter by price and location, view results ending soon](example.png)
 
 ## Features
 
-- **Keyword** and **category ID** search (default: “laptop”, category 177 – PC Laptops & Netbooks)
-- **Max price** filter (default $300)
+- **Keyword** and **category ID** search (e.g. “laptop”, category 177, or any category you choose)
+- **Max price** filter to focus on your budget
 - **Sort: ending soonest** so auctions and short-dated listings appear first
 - Dense table: image, title, price/bid, end date/time, bid count, condition, link to eBay
 - **Reserve not met**: for the top 10 results, auction items with 0 bids get a single bulk `getItems` call; rows where the reserve isn’t met are highlighted in red (requires `buy.item.bulk` scope if your keyset uses separate scopes).
@@ -52,9 +54,9 @@ This copies `moment.min.js`, `tom-select.css`, and `tom-select.complete.min.js` 
 
 ## Usage
 
-- On load, the app runs a search with default keyword “laptop”, category **177**, max price **$300**, sorted by **ending soonest**.
-- Change keyword, category ID, or max price and click **Search** to refresh.
-- Useful category IDs (eBay US): **177** = PC Laptops & Netbooks, **175672** = Laptops & Netbooks.
+- On load, the app runs a search with example defaults (e.g. keyword “laptop”, category **177**, max price **$300**), sorted by **ending soonest**.
+- Change keyword, category ID, or max price and click **Search** to refresh. Use any category to find bargains ending soon—auctions, Buy It Now with short end dates, etc.
+- Example category IDs (eBay US): **177** = PC Laptops & Netbooks, **175672** = Laptops & Netbooks. Search [eBay's category tree](https://www.ebay.com/b/Electronics/bn_7000259124) or the API to find IDs for other categories.
 
 ## Project layout
 
