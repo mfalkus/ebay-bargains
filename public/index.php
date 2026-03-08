@@ -457,6 +457,16 @@ $pageTitle = "eBay - what's ending soon?";
         <p class="meta">Pick categories and click Search to load listings sorted by ending soonest. Add a keyword to narrow results.</p>
     <?php endif; ?>
 
+    <?php
+    $isUnlimitedIp = in_array(trim($clientIp), $unlimitedIps, true);
+    $usage = $rateLimiter->getUsage($clientIp);
+    ?>
+    <p class="rate-limit-footer">
+        Requests: <?= $isUnlimitedIp ? 'unlimited' : $usage['perMinute'] . '/' . RateLimiter::LIMIT_PER_MINUTE . ' (min), ' . $usage['perHour'] . '/' . RateLimiter::LIMIT_PER_HOUR . ' (hr)' ?>
+        · Your IP: <code><?= htmlspecialchars($clientIp) ?></code>
+        · Limit: <?= $isUnlimitedIp ? 'whitelisted' : 'applied' ?>
+    </p>
+
     <script>
     (function() {
         var wrapper = document.querySelector('.field-categories');

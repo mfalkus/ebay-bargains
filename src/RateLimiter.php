@@ -8,8 +8,8 @@ declare(strict_types=1);
  */
 final class RateLimiter
 {
-    private const LIMIT_PER_MINUTE = 10;
-    private const LIMIT_PER_HOUR = 100;
+    public const LIMIT_PER_MINUTE = 10;
+    public const LIMIT_PER_HOUR = 100;
     private const WINDOW_MINUTE = 60;
     private const WINDOW_HOUR = 3600;
 
@@ -76,6 +76,40 @@ final class RateLimiter
         flock($fp, LOCK_UN);
         fclose($fp);
         return true;
+    }
+
+    /**
+     * Get current usage counts for an IP (requests in last minute, last hour).
+     * Does not record a new request. Returns [0, 0] if no data or unlimited.
+     *
+     * @return array{perMinute: int, perHour: int}
+     */
+    public function getUsage(string $clientIp): array
+    {
+        if ($this->isUnlimited($clientIp)) {
+            return ['perMinute' => 0, 'perHour' => 0];
+        }
+        $path = $this->pathForIp($clientIp);
+        if (!is_file($path)) {
+            return ['perMinute' => 0, 'perHour' => 0];
+        }
+        $fp = @fopen($path, 'r');
+        if ($fp === false) {
+            return ['perMinute' => 0, 'perHour' => 0];
+        }
+        if (!flock($fp, LOCK_SH)) {
+            fclose($fp);
+            return ['perMinute' => 0, 'perHour' => 0];
+        }
+        $timestamps = $this->readTimestampsFromHandle($fp);
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        $now = time();
+        $minuteAgo = $now - self::WINDOW_MINUTE;
+        $hourAgo = $now - self::WINDOW_HOUR;
+        $perMinute = count(array_filter($timestamps, static fn(int $t): bool => $t >= $minuteAgo));
+        $perHour = count(array_filter($timestamps, static fn(int $t): bool => $t >= $hourAgo));
+        return ['perMinute' => $perMinute, 'perHour' => $perHour];
     }
 
     private function isUnlimited(string $ip): bool

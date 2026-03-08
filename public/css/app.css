@@ -335,6 +335,21 @@ button:hover {
     color: var(--accent);
 }
 
+.rate-limit-footer {
+    margin-top: 1.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.85em;
+}
+
+.rate-limit-footer code {
+    font-family: inherit;
+    background: var(--surface);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+}
+
 .meta {
     color: var(--muted);
     margin-bottom: 0.75rem;
