@@ -5,7 +5,6 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/config.php';
 require_once dirname(__DIR__) . '/src/RateLimiter.php';
 require_once dirname(__DIR__) . '/src/EbayApi.php';
-require_once dirname(__DIR__) . '/src/CategoryTreeLoader.php';
 
 $clientIp = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 if (isset($_SERVER['HTTP_X_FORWARDED_FOR']) && $_SERVER['HTTP_X_FORWARDED_FOR'] !== '') {
@@ -62,7 +61,6 @@ $marketplaceDeliveryCountry = [
 ];
 
 $error = '';
-$categoryList = []; // Flattened categories from API (id, name, path, level)
 $items = [];
 $reserveStatusByItemId = []; // itemId => reservePriceMet (from getItems bulk call)
 $total = 0;
@@ -101,19 +99,14 @@ if ($clientId === '' || $clientSecret === '') {
     }
 
     $api = new EbayApi($clientId, $clientSecret);
-    try {
-        $loader = new CategoryTreeLoader($api);
-        $categoryList = $loader->getFlattenedCategories($marketplaceUsed);
-    } catch (Throwable $e) {
-        $categoryList = [];
-    }
 
-    $validIds = $categoryList !== [] ? array_column($categoryList, 'id') : [$defaultCategory];
+    // Category IDs from request (validated by API; list is loaded from static JSON in frontend)
     $categoryInput = $_GET['category_ids'] ?? null;
     if (is_array($categoryInput)) {
-        $categoryIdsSelected = array_values(array_intersect($validIds, array_map('strval', array_filter($categoryInput))));
+        $categoryIdsSelected = array_values(array_map('strval', array_filter($categoryInput)));
     } elseif (is_string($categoryInput) && $categoryInput !== '') {
-        $categoryIdsSelected = array_values(array_intersect($validIds, array_map('trim', explode(',', $categoryInput))));
+        $categoryIdsSelected = array_values(array_map('trim', explode(',', $categoryInput)));
+        $categoryIdsSelected = array_filter($categoryIdsSelected);
     } else {
         $categoryIdsSelected = [$defaultCategory];
     }
@@ -200,7 +193,6 @@ $pageTitle = "eBay - what's ending soon?";
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($pageTitle) ?></title>
-    <script src="/vendor/moment.min.js"></script>
     <script>
     (function() {
         var stored = localStorage.getItem('theme');
@@ -224,13 +216,12 @@ $pageTitle = "eBay - what's ending soon?";
 
     <form class="form" method="get" action="">
         <div class="form-row form-row--full">
-            <div class="field field-categories">
+            <div class="field field-categories" data-marketplace="<?= htmlspecialchars($marketplaceUsed) ?>" data-selected="<?= htmlspecialchars(json_encode($categoryIdsSelected)) ?>">
                 <label for="category_select">Categories</label>
                 <select id="category_select" name="category_ids[]" multiple placeholder="Search categories…"></select>
                 <span class="field-hint">Type to search; select one or more categories. Click × on a selected category to remove it.</span>
             </div>
         </div>
-        <script type="application/json" id="category_list_data"><?= json_encode(['list' => $categoryList, 'selected' => $categoryIdsSelected]) ?></script>
         <div class="field">
             <label for="q">Keyword</label>
             <input type="text" id="q" name="q" value="<?= htmlspecialchars($queryUsed) ?>" placeholder="Keyword (optional)">
@@ -286,8 +277,9 @@ $pageTitle = "eBay - what's ending soon?";
     <?php endif; ?>
 
     <?php if ($error === '' && ($queryUsed !== '' || $categoryUsed !== '')): ?>
+        <?php $itemsCount = count($items); ?>
         <div class="meta">
-            <?= count($items) ?> items shown (total <?= $total ?>). Sorted by ending soonest. <?= count($categoryIdsSelected) > 1 ? 'Categories ' : 'Category ' ?><?= htmlspecialchars($categoryUsed) ?>, max <?= htmlspecialchars($currencyUsed) ?> <?= htmlspecialchars($maxPriceUsed) ?><?= $locationUsed !== '' ? ', ' . htmlspecialchars($locations[$locationUsed]) : '' ?><?= $excludeCollectionOnly ? ', collection-only excluded' : '' ?>.
+            <?= $itemsCount ?> items shown (total <?= $total ?>). Sorted by ending soonest. <?= count($categoryIdsSelected) > 1 ? 'Categories ' : 'Category ' ?><?= htmlspecialchars($categoryUsed) ?>, max <?= htmlspecialchars($currencyUsed) ?> <?= htmlspecialchars($maxPriceUsed) ?><?= $locationUsed !== '' ? ', ' . htmlspecialchars($locations[$locationUsed]) : '' ?><?= $excludeCollectionOnly ? ', collection-only excluded' : '' ?>.
         </div>
         <div class="table-wrap">
             <table>
@@ -408,7 +400,8 @@ $pageTitle = "eBay - what's ending soon?";
                 </tbody>
             </table>
         </div>
-        <?php if (count($items) === 0 && $error === ''): ?>
+        <?php unset($items); ?>
+        <?php if ($itemsCount === 0 && $error === ''): ?>
             <p class="meta">No items found. Try a different keyword, category, or max price.</p>
         <?php endif; ?>
     <?php endif; ?>
@@ -419,38 +412,56 @@ $pageTitle = "eBay - what's ending soon?";
 
     <script>
     (function() {
-        var dataEl = document.getElementById('category_list_data');
-        var list = [];
-        var selected = [];
-        if (dataEl) {
-            try {
-                var data = JSON.parse(dataEl.textContent);
-                list = data.list || [];
-                selected = data.selected || [];
-            } catch (e) {}
-        }
-        var options = list.map(function(c) { return { value: c.id, text: c.path }; });
+        var wrapper = document.querySelector('.field-categories');
         var el = document.getElementById('category_select');
-        if (el && typeof TomSelect !== 'undefined') {
-            new TomSelect(el, {
-                options: options,
-                items: selected,
-                valueField: 'value',
-                labelField: 'text',
-                searchField: ['text'],
-                maxItems: null,
-                maxOptions: 200,
-                placeholder: 'Search categories…',
-                plugins: { remove_button: { title: 'Remove category' } }
+        if (!wrapper || !el || typeof TomSelect === 'undefined') return;
+        var marketplace = wrapper.getAttribute('data-marketplace') || 'EBAY_GB';
+        var selected = [];
+        try {
+            var raw = wrapper.getAttribute('data-selected');
+            if (raw) selected = JSON.parse(raw);
+        } catch (e) {}
+        fetch('/data/categories_' + marketplace + '.json')
+            .then(function(r) { return r.ok ? r.json() : []; })
+            .catch(function() { return []; })
+            .then(function(list) {
+                var options = (list || []).map(function(c) { return { value: c.id, text: c.path }; });
+                new TomSelect(el, {
+                    options: options,
+                    items: selected,
+                    valueField: 'value',
+                    labelField: 'text',
+                    searchField: ['text'],
+                    maxItems: null,
+                    maxOptions: 200,
+                    placeholder: 'Search categories…',
+                    plugins: { remove_button: { title: 'Remove category' } }
+                });
             });
-        }
     })();
-    document.querySelectorAll('.relative-time').forEach(function(el) {
-        var end = el.getAttribute('data-end');
-        if (end && typeof moment !== 'undefined') {
-            el.textContent = moment.utc(end).fromNow();
+    (function() {
+        function fromNow(isoDate) {
+            var then = new Date(isoDate).getTime();
+            var now = Date.now();
+            var s = Math.floor((then - now) / 1000);
+            var abs = Math.abs(s);
+            if (abs < 45) return 'a few seconds ' + (s >= 0 ? 'from now' : 'ago');
+            if (abs < 90) return (s >= 0 ? 'a minute from now' : 'a minute ago');
+            if (abs < 3600) return Math.round(abs / 60) + ' minutes ' + (s >= 0 ? 'from now' : 'ago');
+            if (abs < 5400) return (s >= 0 ? 'an hour from now' : 'an hour ago');
+            if (abs < 86400) return Math.round(abs / 3600) + ' hours ' + (s >= 0 ? 'from now' : 'ago');
+            if (abs < 129600) return (s >= 0 ? 'a day from now' : 'a day ago');
+            if (abs < 2592000) return Math.round(abs / 86400) + ' days ' + (s >= 0 ? 'from now' : 'ago');
+            if (abs < 3888000) return (s >= 0 ? 'a month from now' : 'a month ago');
+            if (abs < 31536000) return Math.round(abs / 2592000) + ' months ' + (s >= 0 ? 'from now' : 'ago');
+            if (abs < 47304000) return (s >= 0 ? 'a year from now' : 'a year ago');
+            return Math.round(abs / 31536000) + ' years ' + (s >= 0 ? 'from now' : 'ago');
         }
-    });
+        document.querySelectorAll('.relative-time').forEach(function(el) {
+            var end = el.getAttribute('data-end');
+            if (end) el.textContent = fromNow(end);
+        });
+    })();
     (function() {
         var btn = document.getElementById('theme-toggle');
         function applyTheme(theme) {

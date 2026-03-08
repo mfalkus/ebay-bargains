@@ -2,10 +2,10 @@
   "name": "ebay-fiddle",
   "private": true,
   "scripts": {
-    "build": "node scripts/copy-vendor.js"
+    "build": "node scripts/copy-vendor.js",
+    "build-categories": "php scripts/build-categories.php"
   },
   "devDependencies": {
-    "moment": "^2.30.1",
     "tom-select": "^2.3.1"
   }
 }

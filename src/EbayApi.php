@@ -37,10 +37,12 @@ final class EbayApi
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => 'gzip',
             CURLOPT_HTTPHEADER => [
                 'Authorization: Bearer ' . $token,
                 'X-EBAY-C-MARKETPLACE-ID: ' . $marketplace,
                 'Accept: application/json',
+                'Accept-Encoding: gzip',
             ],
         ]);
 
@@ -82,10 +84,12 @@ final class EbayApi
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => 'gzip',
             CURLOPT_HTTPHEADER => [
                 'Authorization: Bearer ' . $token,
                 'X-EBAY-C-MARKETPLACE-ID: ' . $marketplace,
                 'Accept: application/json',
+                'Accept-Encoding: gzip',
             ],
         ]);
 

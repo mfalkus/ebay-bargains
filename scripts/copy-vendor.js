@@ -10,7 +10,6 @@ const nodeModules = path.join(root, 'node_modules');
 const vendorDir = path.join(root, 'public', 'vendor');
 
 const files = [
-  { from: 'moment/min/moment.min.js', to: 'moment.min.js' },
   { from: 'tom-select/dist/css/tom-select.css', to: 'tom-select.css' },
   { from: 'tom-select/dist/js/tom-select.complete.min.js', to: 'tom-select.complete.min.js' },
 ];

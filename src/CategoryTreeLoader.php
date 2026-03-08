@@ -20,6 +20,14 @@ final class CategoryTreeLoader
      */
     public function getFlattenedCategories(string $marketplace): array
     {
+        $cacheKey = 'ebay_categories_' . preg_replace('/[^A-Z0-9_]/', '', $marketplace);
+        if (function_exists('apcu_fetch')) {
+            $cached = apcu_fetch($cacheKey);
+            if (is_array($cached)) {
+                return $cached;
+            }
+        }
+
         $cacheFile = self::CACHE_DIR . '/categories_' . preg_replace('/[^A-Z0-9_]/', '', $marketplace) . '.json';
         if (!is_dir(self::CACHE_DIR)) {
             @mkdir(self::CACHE_DIR, 0755, true);
@@ -27,7 +35,11 @@ final class CategoryTreeLoader
         if (is_file($cacheFile) && (time() - filemtime($cacheFile)) < self::CACHE_TTL) {
             $data = json_decode((string) file_get_contents($cacheFile), true);
             if (is_array($data['items'] ?? null)) {
-                return $this->stripRootFromPaths($data['items']);
+                $items = $this->stripRootFromPaths($data['items']);
+                if (function_exists('apcu_store')) {
+                    apcu_store($cacheKey, $items, self::CACHE_TTL);
+                }
+                return $items;
             }
         }
         $treeIdResp = $this->api->getDefaultCategoryTreeId($marketplace);
@@ -47,7 +59,11 @@ final class CategoryTreeLoader
             'items' => $items,
         ];
         file_put_contents($cacheFile, json_encode($cacheData, JSON_UNESCAPED_UNICODE));
-        return $this->stripRootFromPaths($items);
+        $flattened = $this->stripRootFromPaths($items);
+        if (function_exists('apcu_store')) {
+            apcu_store($cacheKey, $flattened, self::CACHE_TTL);
+        }
+        return $flattened;
     }
 
     /**
