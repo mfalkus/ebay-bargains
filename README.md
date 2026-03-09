@@ -1,5 +1,8 @@
 # eBay Bargains – Items Ending Soon
 
+- **Live instance:** [https://bargains.falkus.co](https://bargains.falkus.co)
+- **Project background blog:** [https://falkus.co/2026/03/ebay-bargains](https://falkus.co/2026/03/ebay-bargains)
+
 A simple PHP web app that uses the **eBay Browse API** to hunt for potential bargains: browse any category by **keyword** and **category ID**, sorted by **ending soonest**. Great for spotting last-minute auction deals and short-dated listings. No login required; uses app-only OAuth.
 
 ![eBay – search by category, filter by price and location, view results ending soon](example.png)

@@ -263,6 +263,7 @@ if ($clientId === '' || $clientSecret === '') {
 }
 
 $pageTitle = "eBay - what's ending soon?";
+$pageDescription = "Find eBay listings ending soon. Search by category, keyword and max price. See auctions and buy-it-now items closing in the next few hours. UK and US marketplaces.";
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -270,6 +271,11 @@ $pageTitle = "eBay - what's ending soon?";
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($pageTitle) ?></title>
+    <meta name="description" content="<?= htmlspecialchars($pageDescription) ?>">
+    <meta property="og:title" content="<?= htmlspecialchars($pageTitle) ?>">
+    <meta property="og:description" content="<?= htmlspecialchars($pageDescription) ?>">
+    <meta property="og:type" content="website">
+    <meta name="robots" content="index, follow">
     <script>
     (function() {
         var stored = localStorage.getItem('theme');
