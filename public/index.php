@@ -212,6 +212,22 @@ if ($clientId === '' || $clientSecret === '') {
                 }));
             }
 
+            // API sometimes returns items above the max price filter; enforce limit client-side.
+            if ($items !== []) {
+                $items = array_values(array_filter($items, static function (array $item) use ($maxPriceInt, $currencyUsed): bool {
+                    $price = $item['price'] ?? null;
+                    $bidPrice = $item['currentBidPrice'] ?? null;
+                    $displayPrice = $bidPrice ?? $price;
+                    if ($displayPrice === null || !isset($displayPrice['value'], $displayPrice['currency'])) {
+                        return true;
+                    }
+                    if ($displayPrice['currency'] !== $currencyUsed) {
+                        return true;
+                    }
+                    return (float) $displayPrice['value'] <= $maxPriceInt;
+                }));
+            }
+
             // One bulk getItems call for reserve status: top 10 items only, and only 0-bid auctions.
             $reserveStatusByItemId = [];
             $top10 = array_slice($items, 0, 10);

@@ -69,6 +69,11 @@ This copies `tom-select.css` and `tom-select.complete.min.js` from `node_modules
 - Change keyword, category ID, or max price and click **Search** to refresh. Use any category to find bargains ending soon—auctions, Buy It Now with short end dates, etc.
 - Example category IDs (eBay US): **177** = PC Laptops & Netbooks, **175672** = Laptops & Netbooks. Search [eBay's category tree](https://www.ebay.com/b/Electronics/bn_7000259124) or the API to find IDs for other categories.
 
+## Notes
+
+- **Client-side filtering:** The eBay Browse API occasionally returns items above the requested max price. We filter those out in PHP after the response, so the number of items shown per page can be slightly lower than the requested page size.
+- **Empty search:** You can leave categories empty and search by keyword only (all categories). The eBay API requires at least one of keyword or category; we only call the API when the user has entered a keyword and/or selected at least one category.
+
 ## Project layout
 
 - `public/index.php` – Single page: form + results table.
