@@ -151,21 +151,23 @@ if ($clientId === '' || $clientSecret === '') {
 
     $api = new EbayApi($clientId, $clientSecret);
 
-    // Category IDs from request (validated by API; list is loaded from static JSON in frontend)
+    // Category IDs from request (validated by API; list is loaded from static JSON in frontend).
+    // eBay Browse API allows search without category (category_ids is optional); we allow no category when form is submitted without any selected.
     $categoryInput = $_GET['category_ids'] ?? null;
+    $isFirstLoad = ($_GET === []);
     if (is_array($categoryInput)) {
         $categoryIdsSelected = array_values(array_map('strval', array_filter($categoryInput)));
     } elseif (is_string($categoryInput) && $categoryInput !== '') {
         $categoryIdsSelected = array_values(array_map('trim', explode(',', $categoryInput)));
         $categoryIdsSelected = array_filter($categoryIdsSelected);
+    } elseif ($isFirstLoad) {
+        $categoryIdsSelected = [$defaultCategory];
     } else {
-        $categoryIdsSelected = [$defaultCategory];
-    }
-    if ($categoryIdsSelected === []) {
-        $categoryIdsSelected = [$defaultCategory];
+        // Form submitted with no category_ids (user cleared all or didn't select any) = search all categories
+        $categoryIdsSelected = [];
     }
     $categoryIdsSelected = array_map('strval', $categoryIdsSelected);
-    $categoryUsed = implode(',', $categoryIdsSelected);
+    $categoryUsed = $categoryIdsSelected === [] ? '' : implode(',', $categoryIdsSelected);
 
     $maxPriceInt = (int) $maxPriceUsed;
     if ($maxPriceInt <= 0) {
@@ -187,57 +189,60 @@ if ($clientId === '' || $clientSecret === '') {
     $searchLogLine = gmdate('Y-m-d\TH:i:s\Z') . "\t" . $clientIp . "\t" . str_replace(["\r", "\n"], ' ', $_SERVER['QUERY_STRING'] ?? '') . "\n";
     @file_put_contents($searchLogFile, $searchLogLine, FILE_APPEND | LOCK_EX);
 
-    try {
-        $params = [
-            'q' => $queryUsed,
-            'category_ids' => $categoryUsed,
-            'sort' => 'endingSoonest',
-            'limit' => (string) $pageSize,
-            'offset' => (string) $offset,
-            'filter' => implode(',', $filterParts),
-        ];
-        $result = $api->search($params, $marketplaceUsed);
-        $items = $result['itemSummaries'] ?? [];
-        $total = (int) ($result['total'] ?? 0);
+    $hasSearchCriteria = $queryUsed !== '' || $categoryUsed !== '';
+    if ($hasSearchCriteria) {
+        try {
+            $params = [
+                'q' => $queryUsed,
+                'category_ids' => $categoryUsed,
+                'sort' => 'endingSoonest',
+                'limit' => (string) $pageSize,
+                'offset' => (string) $offset,
+                'filter' => implode(',', $filterParts),
+            ];
+            $result = $api->search($params, $marketplaceUsed);
+            $items = $result['itemSummaries'] ?? [];
+            $total = (int) ($result['total'] ?? 0);
 
-        // API can still return pickup-only items when deliveryCountry is set; exclude them client-side.
-        if ($excludeCollectionOnly && $items !== []) {
-            $items = array_values(array_filter($items, static function (array $item): bool {
-                $shippingOptions = $item['shippingOptions'] ?? [];
-                return is_array($shippingOptions) && $shippingOptions !== [];
-            }));
-        }
-
-        // One bulk getItems call for reserve status: top 10 items only, and only 0-bid auctions.
-        $reserveStatusByItemId = [];
-        $top10 = array_slice($items, 0, 10);
-        $idsToFetch = [];
-        foreach ($top10 as $it) {
-            $opts = $it['buyingOptions'] ?? [];
-            $isAuction = in_array('AUCTION', $opts, true);
-            $bids = $it['bidCount'] ?? null;
-            $zeroBids = $bids !== null && (int) $bids === 0;
-            if ($isAuction && $zeroBids) {
-                $id = $it['itemId'] ?? '';
-                if ($id !== '') {
-                    $idsToFetch[] = $id;
-                }
+            // API can still return pickup-only items when deliveryCountry is set; exclude them client-side.
+            if ($excludeCollectionOnly && $items !== []) {
+                $items = array_values(array_filter($items, static function (array $item): bool {
+                    $shippingOptions = $item['shippingOptions'] ?? [];
+                    return is_array($shippingOptions) && $shippingOptions !== [];
+                }));
             }
-        }
-        if ($idsToFetch !== []) {
-            try {
-                $fullItems = $api->getItems($idsToFetch, $marketplaceUsed);
-                foreach ($fullItems as $id => $full) {
-                    if (array_key_exists('reservePriceMet', $full)) {
-                        $reserveStatusByItemId[$id] = $full['reservePriceMet'];
+
+            // One bulk getItems call for reserve status: top 10 items only, and only 0-bid auctions.
+            $reserveStatusByItemId = [];
+            $top10 = array_slice($items, 0, 10);
+            $idsToFetch = [];
+            foreach ($top10 as $it) {
+                $opts = $it['buyingOptions'] ?? [];
+                $isAuction = in_array('AUCTION', $opts, true);
+                $bids = $it['bidCount'] ?? null;
+                $zeroBids = $bids !== null && (int) $bids === 0;
+                if ($isAuction && $zeroBids) {
+                    $id = $it['itemId'] ?? '';
+                    if ($id !== '') {
+                        $idsToFetch[] = $id;
                     }
                 }
-            } catch (Throwable $e) {
-                // Non-fatal: reserve column stays unknown; don't replace $error
             }
+            if ($idsToFetch !== []) {
+                try {
+                    $fullItems = $api->getItems($idsToFetch, $marketplaceUsed);
+                    foreach ($fullItems as $id => $full) {
+                        if (array_key_exists('reservePriceMet', $full)) {
+                            $reserveStatusByItemId[$id] = $full['reservePriceMet'];
+                        }
+                    }
+                } catch (Throwable $e) {
+                    // Non-fatal: reserve column stays unknown; don't replace $error
+                }
+            }
+        } catch (Throwable $e) {
+            $error = $e->getMessage();
         }
-    } catch (Throwable $e) {
-        $error = $e->getMessage();
     }
 }
 
@@ -275,7 +280,7 @@ $pageTitle = "eBay - what's ending soon?";
             <div class="field field-categories" data-marketplace="<?= htmlspecialchars($marketplaceUsed) ?>" data-selected="<?= htmlspecialchars(json_encode($categoryIdsSelected)) ?>">
                 <label for="category_select">Categories</label>
                 <select id="category_select" name="category_ids[]" multiple placeholder="Search categories…"></select>
-                <span class="field-hint">Type to search; select one or more categories. Click × on a selected category to remove it.</span>
+                <span class="field-hint">Type to search; select one or more categories, or leave empty to search all. Click × on a selected category to remove it.</span>
             </div>
         </div>
         <div class="field">
@@ -368,7 +373,7 @@ $pageTitle = "eBay - what's ending soon?";
         }
         ?>
         <div class="meta">
-            <?= $itemsCount ?> items shown (<?= $from ?>–<?= $to ?> of <?= $total ?>)<?= $total > $pageSize ? ' · Page ' . $currentPage . ' of ' . $totalPages : '' ?>. Sorted by ending soonest. <?= count($categoryIdsSelected) > 1 ? 'Categories ' : 'Category ' ?><?= htmlspecialchars($categoryUsed) ?>, max <?= htmlspecialchars($currencyUsed) ?> <?= htmlspecialchars($maxPriceUsed) ?><?= $locationUsed !== '' ? ', ' . htmlspecialchars($locations[$locationUsed]) : '' ?><?= $excludeCollectionOnly ? ', collection-only excluded' : '' ?>.
+            <?= $itemsCount ?> items shown (<?= $from ?>–<?= $to ?> of <?= $total ?>)<?= $total > $pageSize ? ' · Page ' . $currentPage . ' of ' . $totalPages : '' ?>. Sorted by ending soonest. <?= $categoryUsed !== '' ? (count($categoryIdsSelected) > 1 ? 'Categories ' : 'Category ') . htmlspecialchars($categoryUsed) : 'All categories' ?>, max <?= htmlspecialchars($currencyUsed) ?> <?= htmlspecialchars($maxPriceUsed) ?><?= $locationUsed !== '' ? ', ' . htmlspecialchars($locations[$locationUsed]) : '' ?><?= $excludeCollectionOnly ? ', collection-only excluded' : '' ?>.
         </div>
         <?= $paginationNav ?>
         <div class="table-wrap">
@@ -497,8 +502,8 @@ $pageTitle = "eBay - what's ending soon?";
         <?php endif; ?>
     <?php endif; ?>
 
-    <?php if ($error === '' && $queryUsed === '' && !isset($_GET['category_ids']) && !isset($_GET['q'])): ?>
-        <p class="meta">Pick categories and click Search to load listings sorted by ending soonest. Add a keyword to narrow results.</p>
+    <?php if ($error === '' && $queryUsed === '' && $categoryUsed === ''): ?>
+        <p class="meta">Enter a keyword and/or select one or more categories, then click Search to load listings sorted by ending soonest.</p>
     <?php endif; ?>
 
     <?php
